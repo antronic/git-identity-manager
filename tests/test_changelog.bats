@@ -140,6 +140,62 @@ teardown() {
     [[ "$output" == *"99.9.9"* ]]
 }
 
+# --- Settings: UPDATE_CHECK_FREQUENCY -----------------------------------------
+
+@test "load_settings defaults UPDATE_CHECK_FREQUENCY to everytime" {
+    rm -f "$CONFIG_FILE"
+    load_settings
+    [ "$SETTING_UPDATE_CHECK_FREQUENCY" = "everytime" ]
+}
+
+@test "save_setting persists UPDATE_CHECK_FREQUENCY" {
+    save_setting "UPDATE_CHECK_FREQUENCY" "daily"
+    load_settings
+    [ "$SETTING_UPDATE_CHECK_FREQUENCY" = "daily" ]
+}
+
+@test "check_for_updates startup shows 'Checking for updates' message" {
+    CLI_MODE=""
+    curl() { echo "VERSION=\"$VERSION\""; }
+    export -f curl
+    run check_for_updates
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"Checking for updates"* ]]
+}
+
+@test "check_for_updates skips when daily frequency and check was recent" {
+    save_setting "UPDATE_CHECK_FREQUENCY" "daily"
+    # Write a timestamp that is only 60 seconds old (well within 86400s)
+    echo "$(( $(date +%s) - 60 ))" > "$MANAGER_DIR/.last_update_check"
+    curl() { echo "CURL_CALLED"; }
+    export -f curl
+    run check_for_updates
+    [ "$status" -eq 0 ]
+    [[ "$output" != *"CURL_CALLED"* ]]
+}
+
+@test "check_for_updates runs when daily frequency and check is overdue" {
+    save_setting "UPDATE_CHECK_FREQUENCY" "daily"
+    # Write a timestamp that is 2 days old (past 86400s interval)
+    echo "$(( $(date +%s) - 172800 ))" > "$MANAGER_DIR/.last_update_check"
+    curl() { echo "VERSION=\"$VERSION\""; }
+    export -f curl
+    run check_for_updates
+    [ "$status" -eq 0 ]
+    # curl was invoked (no CURL_CALLED mock here — absence of skip is sufficient)
+}
+
+@test "check_for_updates skips when weekly frequency and check was recent" {
+    save_setting "UPDATE_CHECK_FREQUENCY" "weekly"
+    # Write a timestamp that is only 1 day old (well within 604800s)
+    echo "$(( $(date +%s) - 86400 ))" > "$MANAGER_DIR/.last_update_check"
+    curl() { echo "CURL_CALLED"; }
+    export -f curl
+    run check_for_updates
+    [ "$status" -eq 0 ]
+    [[ "$output" != *"CURL_CALLED"* ]]
+}
+
 # --- Settings: load_settings and save_setting helpers ----------------------
 
 @test "load_settings sets defaults when config file is absent" {

@@ -87,6 +87,7 @@ load_settings() {
     # Defaults
     SETTING_AUTO_UPDATE_CHECK="true"
     SETTING_SHOW_CHANGELOG="true"
+    SETTING_UPDATE_CHECK_FREQUENCY="everytime"
 
     if [[ -f "$CONFIG_FILE" ]]; then
         local key val
@@ -94,8 +95,9 @@ load_settings() {
             [[ "$key" =~ ^[[:space:]]*# ]] && continue
             [[ -z "$key" ]] && continue
             case "$key" in
-                AUTO_UPDATE_CHECK) SETTING_AUTO_UPDATE_CHECK="$val" ;;
-                SHOW_CHANGELOG)    SETTING_SHOW_CHANGELOG="$val" ;;
+                AUTO_UPDATE_CHECK)      SETTING_AUTO_UPDATE_CHECK="$val" ;;
+                SHOW_CHANGELOG)         SETTING_SHOW_CHANGELOG="$val" ;;
+                UPDATE_CHECK_FREQUENCY) SETTING_UPDATE_CHECK_FREQUENCY="$val" ;;
             esac
         done < "$CONFIG_FILE"
     fi
@@ -172,7 +174,30 @@ check_for_updates() {
     [[ "${SETTING_AUTO_UPDATE_CHECK:-true}" == "false" ]] && return 0
     if ! command -v curl &> /dev/null; then return; fi
 
+    # --- Frequency gate (startup path only) ---
+    if [[ "$explicit" == "false" ]]; then
+        local freq="${SETTING_UPDATE_CHECK_FREQUENCY:-everytime}"
+        if [[ "$freq" != "everytime" ]]; then
+            local last_check_file="$MANAGER_DIR/.last_update_check"
+            local interval=0
+            [[ "$freq" == "daily" ]]  && interval=86400
+            [[ "$freq" == "weekly" ]] && interval=604800
+            if [[ -f "$last_check_file" && $interval -gt 0 ]]; then
+                local last_check now
+                last_check=$(cat "$last_check_file")
+                now=$(date +%s)
+                if (( now - last_check < interval )); then
+                    return 0
+                fi
+            fi
+        fi
+        # Show a transient "checking..." line; the main-menu `clear` will erase it
+        [[ -z "$CLI_MODE" ]] && printf " [i] Checking for updates...\r"
+    fi
+
     REMOTE_VERSION=$(curl -sL --max-time 2 "$UPDATE_URL" | grep -E '^VERSION=' | head -n 1 | cut -d'"' -f2)
+    # Record timestamp so frequency gate can skip future startup checks
+    date +%s > "$MANAGER_DIR/.last_update_check" 2>/dev/null || true
 
     if [ -n "$REMOTE_VERSION" ] && [ "$REMOTE_VERSION" != "$VERSION" ]; then
         echo "=================================================================="
@@ -826,18 +851,20 @@ manage_settings() {
         echo "  Toggle an option to enable or disable it."
         echo ""
 
-        local upd_status chg_status
+        local upd_status chg_status freq_status
         [[ "$SETTING_AUTO_UPDATE_CHECK" == "true" ]] && upd_status="ENABLED " || upd_status="DISABLED"
         [[ "$SETTING_SHOW_CHANGELOG"    == "true" ]] && chg_status="ENABLED " || chg_status="DISABLED"
+        freq_status="${SETTING_UPDATE_CHECK_FREQUENCY:-everytime}"
 
         printf "  [1] Auto Update Check on Startup : [%s]\n" "$upd_status"
         printf "  [2] Show Changelog After Upgrade  : [%s]\n" "$chg_status"
+        printf "  [3] Update Check Frequency        : [%s]\n" "$freq_status"
         echo ""
-        echo "  [3] Check for Updates Now"
+        echo "  [4] Check for Updates Now"
         echo "  [0] Back to Main Menu"
         echo ""
         echo "=================================================================="
-        [[ -z "$CLI_MODE" ]] && read -p " -> Select an option [0-3]: " setting_choice || return 0
+        [[ -z "$CLI_MODE" ]] && read -p " -> Select an option [0-4]: " setting_choice || return 0
 
         case $setting_choice in
             1)
@@ -861,6 +888,16 @@ manage_settings() {
                 sleep 1
                 ;;
             3)
+                # Cycle: everytime → daily → weekly → everytime
+                case "${SETTING_UPDATE_CHECK_FREQUENCY:-everytime}" in
+                    everytime) save_setting "UPDATE_CHECK_FREQUENCY" "daily"     ; echo " [+] Update check frequency: daily."      ;;
+                    daily)     save_setting "UPDATE_CHECK_FREQUENCY" "weekly"    ; echo " [+] Update check frequency: weekly."     ;;
+                    weekly)    save_setting "UPDATE_CHECK_FREQUENCY" "everytime" ; echo " [+] Update check frequency: everytime."  ;;
+                    *)         save_setting "UPDATE_CHECK_FREQUENCY" "everytime" ; echo " [+] Update check frequency reset to: everytime." ;;
+                esac
+                sleep 1
+                ;;
+            4)
                 # Temporarily bypass the setting guard so a manual trigger always works
                 local _saved="$SETTING_AUTO_UPDATE_CHECK"
                 SETTING_AUTO_UPDATE_CHECK="true"

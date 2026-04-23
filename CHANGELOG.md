@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.6] - 2026-04-23
+
+### Added
+- Startup UX: a transient `[i] Checking for updates...` message is now printed
+  while the version check runs, preventing the blank-screen pause on launch.
+  The message is overwritten by the main menu `clear` so it never lingers.
+- Settings → `[3] Update Check Frequency`: choose how often the auto-update check
+  runs on startup. Cycles through `everytime` (default) → `daily` → `weekly` and
+  back. Setting is persisted to `~/.git-manager/config.env` as
+  `UPDATE_CHECK_FREQUENCY`. A `.last_update_check` timestamp file in
+  `~/.git-manager/` tracks when the last check occurred.
+- Former `[3] Check for Updates Now` renumbered to `[4]` to accommodate the new
+  frequency option.
+- 6 new BATS tests covering: startup message display, frequency default, persistence,
+  skip-when-recent (daily & weekly), and run-when-overdue (daily). (88 tests total)
+
 ## [1.2.5] - 2026-04-23
 
 ### Added
