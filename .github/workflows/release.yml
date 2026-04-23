@@ -1,0 +1,58 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Extract version from tag
+        id: version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
+
+      - name: Verify VERSION in script matches tag
+        run: |
+          SCRIPT_VERSION=$(grep -E '^VERSION=' git-identity-manager.sh | cut -d'"' -f2)
+          TAG_VERSION="${{ steps.version.outputs.VERSION }}"
+          echo "Script VERSION : $SCRIPT_VERSION"
+          echo "Tag VERSION    : $TAG_VERSION"
+          if [ "$SCRIPT_VERSION" != "$TAG_VERSION" ]; then
+            echo "[!] Version mismatch: script says $SCRIPT_VERSION but tag is $TAG_VERSION"
+            exit 1
+          fi
+          echo "[+] Version match confirmed: $SCRIPT_VERSION"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "Git Identity Manager v${{ steps.version.outputs.VERSION }}"
+          body: |
+            ## 🔮 Git Identity Manager v${{ steps.version.outputs.VERSION }}
+
+            ### Install / Upgrade
+            ```bash
+            curl -sL https://raw.githubusercontent.com/antronic/git-identity-manager/main/install.sh | bash
+            ```
+
+            Or upgrade in-place:
+            ```bash
+            git-identity-manager update
+            ```
+
+            See the [README](https://github.com/antronic/git-identity-manager#readme) for full usage instructions.
+          files: |
+            git-identity-manager.sh
+            install.sh
+          draft: false
+          prerelease: false

@@ -4,9 +4,9 @@
 # Git Identity Manager - Installer
 # ==============================================================================
 
-REPO_URL="https://raw.githubusercontent.com/antronic/git-identity-manager/main/git-manager.sh"
+REPO_URL="https://raw.githubusercontent.com/antronic/git-identity-manager/main/git-identity-manager.sh"
 INSTALL_DIR="$HOME/.local/bin"
-SCRIPT_PATH="$INSTALL_DIR/git-manager"
+SCRIPT_PATH="$INSTALL_DIR/git-identity-manager"
 
 echo " [*] Installing Git Identity Manager..."
 
@@ -25,10 +25,10 @@ fi
 # Check if ~/.local/bin is in the user's PATH
 if [[ ":$PATH:" != *":$INSTALL_DIR:"* ]]; then
     echo " [!] Warning: $INSTALL_DIR is not in your PATH."
-    echo "     To use 'git-manager' from anywhere, add this to your ~/.bashrc or ~/.zshrc:"
+    echo "     To use 'git-identity-manager' from anywhere, add this to your ~/.bashrc or ~/.zshrc:"
     echo "     export PATH=\"\$HOME/.local/bin:\$PATH\""
     echo ""
     echo "     For now, you can run it using: $SCRIPT_PATH"
 else
-    echo " [ OK ] Installation complete! You can now type 'git-manager' in your terminal."
+    echo " [ OK ] Installation complete! You can now type 'git-identity-manager' in your terminal."
 fi

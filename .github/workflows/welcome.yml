@@ -1,0 +1,42 @@
+name: Welcome
+
+on:
+  pull_request_target:
+    types: [opened]
+  issues:
+    types: [opened]
+
+permissions:
+  issues: write
+  pull-requests: write
+
+jobs:
+  welcome:
+    name: Welcome first-time contributors
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/first-interaction@v1
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+          issue-message: |
+            👋 Thanks for opening your first issue, @${{ github.actor }}!
+
+            To help us address it quickly, please make sure you've included:
+            - Your OS and shell (`uname -a`, `echo $SHELL`)
+            - Steps to reproduce the problem
+            - Any relevant error output
+
+            We'll take a look soon! 🔮
+
+          pr-message: |
+            👋 Thanks for your first pull request, @${{ github.actor }}! 🎉
+
+            Before we review, please check:
+            - [ ] PR title follows [Conventional Commits](https://www.conventionalcommits.org/) (e.g. `fix: correct SSH path on macOS`)
+            - [ ] New functions are registered in **both** the CLI `case` parser and the TUI `main_menu`
+            - [ ] No external dependencies have been added (pure Bash only)
+            - [ ] `bash -n git-identity-manager.sh` passes with no errors
+
+            We appreciate the contribution! 🙌

@@ -2,7 +2,7 @@
 
 ## Project
 Zero-dependency, pure Bash TUI/CLI tool (v1.1.0) for managing multiple Git identities.
-Single entry point: `git-manager.sh`. Do NOT create additional script files.
+Single entry point: `git-identity-manager.sh`. Do NOT create additional script files.
 Language: Bash only. No npm, pip, gem, cargo, or any external runtime.
 
 ## Runtime Paths
@@ -42,18 +42,18 @@ profiles=()     # Array populated by get_profiles()
 
 ## CLI Interface
 ```
-git-manager setup               # Generate keys + create profile
-git-manager import              # Link existing SSH/GPG keys
-git-manager switch <profile>    # Apply profile locally
-git-manager global <profile>    # Apply profile globally
-git-manager view                # List all profiles
-git-manager doctor              # Health check + auto-fix
-git-manager update              # Force update check
-git-manager --help              # Show help
+git-identity-manager setup               # Generate keys + create profile
+git-identity-manager import              # Link existing SSH/GPG keys
+git-identity-manager switch <profile>    # Apply profile locally
+git-identity-manager global <profile>    # Apply profile globally
+git-identity-manager view                # List all profiles
+git-identity-manager doctor              # Health check + auto-fix
+git-identity-manager update              # Force update check
+git-identity-manager --help              # Show help
 ```
 
 ## Rules
-1. All code lives in `git-manager.sh`. Never split into multiple files.
+1. All code lives in `git-identity-manager.sh`. Never split into multiple files.
 2. Every new function must be registered in BOTH:
    - `case "$1" in` CLI argument parser (bottom of file)
    - `while true; do` TUI main menu loop (bottom of file)
@@ -63,10 +63,11 @@ git-manager --help              # Show help
 4. Message prefixes: `[?]` prompt · `[i]` info · `[+]` success · `[!]` error · `[*]` status
 5. Every SSH conf block written to `~/.ssh/git-manager.d/` MUST contain `IdentitiesOnly yes`
 6. Profile files contain ONLY `git config` commands — no secrets, no key material
+7. **Version bump → CHANGELOG is mandatory**: when `VERSION` in `git-identity-manager.sh` is changed, update `CHANGELOG.md` with a new `## [X.Y.Z] - YYYY-MM-DD` section (create the file in Keep a Changelog format if missing)
 
 ## Prohibited
 - No external package dependencies of any kind
-- No splitting `git-manager.sh` into multiple files
+- No splitting `git-identity-manager.sh` into multiple files
 - No direct writes to `~/.ssh/config`
 - No SSH private key content or passwords stored in files
 - No languages other than Bash

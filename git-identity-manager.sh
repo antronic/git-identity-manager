@@ -8,10 +8,12 @@
 # ==============================================================================
 
 VERSION="1.1.0"
-UPDATE_URL="https://raw.githubusercontent.com/antronic/git-identity-manager/main/git-manager.sh"
+UPDATE_URL="https://raw.githubusercontent.com/antronic/git-identity-manager/main/git-identity-manager.sh"
+CHANGELOG_URL="https://api.github.com/repos/antronic/git-identity-manager/releases/latest"
 
 MANAGER_DIR="$HOME/.git-manager"
 PROFILES_DIR="$MANAGER_DIR/profiles"
+CONFIG_FILE="$MANAGER_DIR/config.env"
 mkdir -p "$PROFILES_DIR"
 
 # Detect Shell Profile for aliases
@@ -33,13 +35,89 @@ get_profiles() {
     profiles=()
     if [ -d "$PROFILES_DIR" ]; then
         for f in "$PROFILES_DIR"/*; do
-            [ -e "$f" ] && profiles+=("$(basename "$f")")
+            [ -e "$f" ] && profiles+=("$(basename "$f")") || true
         done
+    fi
+}
+
+# --- HELPER: LOAD SETTINGS FROM CONFIG FILE ---
+load_settings() {
+    # Defaults
+    SETTING_AUTO_UPDATE_CHECK="true"
+    SETTING_SHOW_CHANGELOG="true"
+
+    if [[ -f "$CONFIG_FILE" ]]; then
+        local key val
+        while IFS='=' read -r key val; do
+            [[ "$key" =~ ^[[:space:]]*# ]] && continue
+            [[ -z "$key" ]] && continue
+            case "$key" in
+                AUTO_UPDATE_CHECK) SETTING_AUTO_UPDATE_CHECK="$val" ;;
+                SHOW_CHANGELOG)    SETTING_SHOW_CHANGELOG="$val" ;;
+            esac
+        done < "$CONFIG_FILE"
+    fi
+}
+
+# --- HELPER: PERSIST A SETTING TO CONFIG FILE ---
+save_setting() {
+    local key="$1" value="$2"
+    touch "$CONFIG_FILE"
+    if grep -q "^${key}=" "$CONFIG_FILE" 2>/dev/null; then
+        sed -i.bak "s|^${key}=.*|${key}=${value}|" "$CONFIG_FILE"
+        rm -f "${CONFIG_FILE}.bak"
+    else
+        echo "${key}=${value}" >> "$CONFIG_FILE"
+    fi
+    # Reload so in-memory vars reflect the change
+    load_settings
+}
+
+# --- HELPER: FETCH CHANGELOG FROM GITHUB RELEASES ---
+fetch_changelog() {
+    local target_version="${1:-}"
+    if ! command -v curl &> /dev/null; then return; fi
+
+    local release_json
+    if [[ -n "$target_version" ]]; then
+        release_json=$(curl -sL --max-time 5 \
+            "https://api.github.com/repos/antronic/git-identity-manager/releases/tags/v${target_version}" \
+            2>/dev/null)
+    else
+        release_json=$(curl -sL --max-time 5 "$CHANGELOG_URL" 2>/dev/null)
+    fi
+
+    # Extract body field — works without jq by parsing the JSON manually
+    echo "$release_json" | grep -o '"body":"[^"]*"' | sed 's/"body":"//;s/"$//' | sed 's/\\r\\n/\n/g;s/\\n/\n/g'
+}
+
+# --- HELPER: SHOW CHANGELOG ONCE AFTER AN UPGRADE ---
+show_changelog_once() {
+    [[ "${SETTING_SHOW_CHANGELOG:-true}" == "false" ]] && return 0
+    local marker_file="$MANAGER_DIR/.last_seen_version"
+    local last_seen=""
+    [[ -f "$marker_file" ]] && last_seen=$(cat "$marker_file")
+
+    if [[ "$last_seen" != "$VERSION" ]]; then
+        echo "=================================================================="
+        echo " [*] WHAT'S NEW IN v$VERSION"
+        echo "=================================================================="
+        local changelog
+        changelog=$(fetch_changelog "$VERSION")
+        if [[ -n "$changelog" ]]; then
+            echo "$changelog"
+        else
+            echo " No release notes available for this version."
+        fi
+        echo "=================================================================="
+        echo "$VERSION" > "$marker_file"
+        [[ -z "$CLI_MODE" ]] && read -p " Press Enter to continue..." || true
     fi
 }
 
 # --- AUTO UPDATE CHECKER ---
 check_for_updates() {
+    [[ "${SETTING_AUTO_UPDATE_CHECK:-true}" == "false" ]] && return 0
     if ! command -v curl &> /dev/null; then return; fi
 
     REMOTE_VERSION=$(curl -sL --max-time 2 "$UPDATE_URL" | grep -E '^VERSION=' | head -n 1 | cut -d'"' -f2)
@@ -47,9 +125,19 @@ check_for_updates() {
     if [ -n "$REMOTE_VERSION" ] && [ "$REMOTE_VERSION" != "$VERSION" ]; then
         echo "=================================================================="
         echo " [*] UPDATE AVAILABLE! "
-        echo "     Current Version: $VERSION"
-        echo "     New Version    : $REMOTE_VERSION"
+        echo "     Current Version : $VERSION"
+        echo "     New Version     : $REMOTE_VERSION"
         echo "=================================================================="
+        echo ""
+        echo " [*] Fetching release notes for v$REMOTE_VERSION..."
+        local changelog
+        changelog=$(fetch_changelog "$REMOTE_VERSION")
+        if [[ -n "$changelog" ]]; then
+            echo "------------------------------------------------------------------"
+            echo "$changelog"
+            echo "------------------------------------------------------------------"
+        fi
+        echo ""
         read -p " [?] Would you like to auto-upgrade now? (Y/n): " DO_UPGRADE
         DO_UPGRADE=${DO_UPGRADE:-Y}
         if [[ "$DO_UPGRADE" =~ ^[Yy]$ ]]; then
@@ -303,7 +391,7 @@ switch_identity() {
     PROFILE_FILE="$PROFILES_DIR/$TARGET_PROFILE"
     if [ ! -f "$PROFILE_FILE" ]; then
         echo " [!] Identity '$TARGET_PROFILE' does not exist."
-        [[ -z "$CLI_MODE" ]] && read -p " Press Enter..."
+        [[ -z "$CLI_MODE" ]] && read -p " Press Enter..." || true
         return
     fi
 
@@ -318,7 +406,7 @@ switch_identity() {
             echo " [+] Successfully applied '$TARGET_PROFILE' to LOCAL repository."
         fi
     fi
-    [[ -z "$CLI_MODE" ]] && read -p " Press Enter..."
+    [[ -z "$CLI_MODE" ]] && read -p " Press Enter..." || true
 }
 
 # --- FUNCTION: VIEW PROFILES ---
@@ -332,7 +420,7 @@ view_profiles() {
     get_profiles
     if [ ${#profiles[@]} -eq 0 ]; then
         echo " [i] The vault is empty. No identities found."
-        [[ -z "$CLI_MODE" ]] && read -p " Press Enter..."
+        [[ -z "$CLI_MODE" ]] && read -p " Press Enter..." || true
         return
     fi
 
@@ -355,7 +443,7 @@ view_profiles() {
     done
     echo "--------------------------------------------------------------------------------"
     echo ""
-    [[ -z "$CLI_MODE" ]] && read -p " Press Enter..."
+    [[ -z "$CLI_MODE" ]] && read -p " Press Enter..." || true
 }
 
 # --- FUNCTION: MODIFY ACCOUNT ---
@@ -581,14 +669,14 @@ run_doctor() {
     echo ""
     echo " [ OK ] Health check complete! Fixable issues have been resolved."
     echo ""
-    [[ -z "$CLI_MODE" ]] && read -p " Press Enter to return..."
+    [[ -z "$CLI_MODE" ]] && read -p " Press Enter to return..." || true
 }
 
 # --- FUNCTION: QUICK GUIDE ---
 quick_guide() {
     clear
     echo "=================================================================="
-    echo " [ GUIDE ]  HOW TO USE GIT MANAGER"
+    echo " [ GUIDE ]  HOW TO USE GIT IDENTITY MANAGER"
     echo "=================================================================="
     echo ""
     echo " 1. HOW TO CLONE A REPOSITORY"
@@ -611,16 +699,105 @@ quick_guide() {
     echo " -> Type:  as-NICKNAME  (e.g., as-work, as-personal)"
     echo ""
     echo " GLOBALLY (default for all future repos):"
-    echo " -> Type:  as-NICKNAME-global"
+    echo " -> Type:  as-NICKNAME-global  (e.g., as-work-global)"
+    echo ""
+    echo ""
+    echo " 3. QUICK-SWITCH ALIASES — TEMPLATE & SAMPLES"
+    echo " ----------------------------------------------------------------"
+    echo " Two aliases are auto-injected into your ~/.zshrc or ~/.bashrc"
+    echo " every time you create or import a profile."
+    echo ""
+    echo " ALIAS FORMAT:"
+    echo "   as-NICKNAME          → apply to current repo  (local .git/config)"
+    echo "   as-NICKNAME-global   → apply system-wide      (global ~/.gitconfig)"
+    echo ""
+    echo " SAMPLE ALIASES WRITTEN TO YOUR SHELL RC FILE:"
+    echo "   alias as-work='source \"~/.git-manager/profiles/work\" ...'"
+    echo "   alias as-work-global='sed ... | bash ...'"
+    echo "   alias as-personal='source \"~/.git-manager/profiles/personal\" ...'"
+    echo "   alias as-personal-global='sed ... | bash ...'"
+    echo ""
+    echo " SAMPLE DAILY WORKFLOW:"
+    echo "   \$ git clone git@github.com-work:MyOrg/project.git"
+    echo "   \$ cd project"
+    echo "   \$ as-work"
+    echo "    [+] Switched to identity: work (Local)"
+    echo "   \$ git config user.name    # -> Alice Work"
+    echo "   \$ git config user.email   # -> alice@work.com"
+    echo ""
+    echo "   # Or set a global default for all repos:"
+    echo "   \$ as-personal-global"
+    echo "    [+] Switched to identity: personal (Global)"
+    echo ""
+    echo " TIP: Restart your terminal once after first setup so the"
+    echo "      aliases become available in every new shell session."
     echo "=================================================================="
     echo ""
     read -p " Press Enter to return to the menu..."
 }
 
+# --- FUNCTION: MANAGE SETTINGS ---
+manage_settings() {
+    while true; do
+        clear
+        echo "=================================================================="
+        echo " [ SETTINGS ]  CONFIGURE GIT IDENTITY MANAGER"
+        echo "=================================================================="
+        echo ""
+        echo "  Toggle an option to enable or disable it."
+        echo ""
+
+        local upd_status chg_status
+        [[ "$SETTING_AUTO_UPDATE_CHECK" == "true" ]] && upd_status="ENABLED " || upd_status="DISABLED"
+        [[ "$SETTING_SHOW_CHANGELOG"    == "true" ]] && chg_status="ENABLED " || chg_status="DISABLED"
+
+        printf "  [1] Auto Update Check on Startup : [%s]\n" "$upd_status"
+        printf "  [2] Show Changelog After Upgrade  : [%s]\n" "$chg_status"
+        echo ""
+        echo "  [3] Check for Updates Now"
+        echo "  [0] Back to Main Menu"
+        echo ""
+        echo "=================================================================="
+        [[ -z "$CLI_MODE" ]] && read -p " -> Select an option [0-3]: " setting_choice || return 0
+
+        case $setting_choice in
+            1)
+                if [[ "$SETTING_AUTO_UPDATE_CHECK" == "true" ]]; then
+                    save_setting "AUTO_UPDATE_CHECK" "false"
+                    echo " [+] Auto update check DISABLED."
+                else
+                    save_setting "AUTO_UPDATE_CHECK" "true"
+                    echo " [+] Auto update check ENABLED."
+                fi
+                sleep 1
+                ;;
+            2)
+                if [[ "$SETTING_SHOW_CHANGELOG" == "true" ]]; then
+                    save_setting "SHOW_CHANGELOG" "false"
+                    echo " [+] Changelog display DISABLED."
+                else
+                    save_setting "SHOW_CHANGELOG" "true"
+                    echo " [+] Changelog display ENABLED."
+                fi
+                sleep 1
+                ;;
+            3)
+                # Temporarily bypass the setting guard so a manual trigger always works
+                local _saved="$SETTING_AUTO_UPDATE_CHECK"
+                SETTING_AUTO_UPDATE_CHECK="true"
+                check_for_updates
+                SETTING_AUTO_UPDATE_CHECK="$_saved"
+                ;;
+            0) break ;;
+            *) echo "" ; echo " [!] Invalid option." ; sleep 1 ;;
+        esac
+    done
+}
+
 # --- COMMAND LINE ARGUMENT PARSER & HELP MENU ---
 print_help() {
     echo "Git Identity Manager (v$VERSION)"
-    echo "Usage: git-manager [command] [options]"
+    echo "Usage: git-identity-manager [command] [options]"
     echo ""
     echo "Commands:"
     echo "  setup                 Launch interactive setup (Generate new keys)"
@@ -630,62 +807,73 @@ print_help() {
     echo "  view                  View all configured profiles"
     echo "  doctor                Run system health check and auto-fix"
     echo "  update                Force check for script updates"
+    echo "  settings              Open settings menu"
     echo "  --help, -h            Display this help message"
     echo ""
     echo "Example:"
-    echo "  git-manager switch work"
-    echo "  git-manager global personal"
+    echo "  git-identity-manager switch work"
+    echo "  git-identity-manager global personal"
 }
 
-CLI_MODE=true
-case "$1" in
-    --help|-h|help) print_help; exit 0 ;;
-    setup) setup_identity; exit 0 ;;
-    import) import_identity; exit 0 ;;
-    switch) switch_identity "$2" "local"; exit 0 ;;
-    global) switch_identity "$2" "global"; exit 0 ;;
-    view) view_profiles; exit 0 ;;
-    doctor) run_doctor; exit 0 ;;
-    update) check_for_updates; exit 0 ;;
-    "") CLI_MODE="" ;; # No args, launch GUI
-    *) echo "Unknown command: $1"; print_help; exit 1 ;;
-esac
-
-# --- MAIN MENU LOOP ---
-check_for_updates # Check on startup silently
-
-while true; do
-    clear
-    echo "=================================================================="
-    echo "               G I T   I D E N T I T Y   M A N A G E R            "
-    echo "                        Version: $VERSION                         "
-    echo "=================================================================="
-    echo ""
-    echo "    [ 1 ] Setup New Account (Generate Keys)"
-    echo "    [ 2 ] Import Existing Account (Link Keys)"
-    echo "    [ 3 ] Switch Account (Local / Global)"
-    echo "    [ 4 ] View All Profiles"
-    echo "    [ 5 ] Modify a Profile"
-    echo "    [ 6 ] Delete a Profile"
-    echo "    [ 7 ] View Public Keys (SSH/GPG)"
-    echo "    [ 8 ] Run Doctor (Validate & Auto-Fix)"
-    echo "    [ 9 ] Quick Guide & How-To"
-    echo "    [ 0 ] Exit"
-    echo ""
-    echo "=================================================================="
-    read -p " -> Select an option [0-9]: " choice
-
-    case $choice in
-        1) setup_identity ;;
-        2) import_identity ;;
-        3) switch_identity ;;
-        4) view_profiles ;;
-        5) modify_identity ;;
-        6) delete_identity ;;
-        7) print_keys ;;
-        8) run_doctor ;;
-        9) quick_guide ;;
-        0) echo "" ; echo " Exiting system. Goodbye." ; echo "" ; exit 0 ;;
-        *) echo "" ; echo " [!] Invalid option." ; sleep 1 ;;
+# ==============================================================================
+# ENTRY POINT — only runs when executed directly, never when sourced (e.g. tests)
+# ==============================================================================
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    CLI_MODE=true
+    case "$1" in
+        --help|-h|help) print_help; exit 0 ;;
+        setup) setup_identity; exit 0 ;;
+        import) import_identity; exit 0 ;;
+        switch) switch_identity "$2" "local"; exit 0 ;;
+        global) switch_identity "$2" "global"; exit 0 ;;
+        view) view_profiles; exit 0 ;;
+        doctor) run_doctor; exit 0 ;;
+        update) check_for_updates; exit 0 ;;
+        settings) load_settings; manage_settings; exit 0 ;;
+        "") CLI_MODE="" ;; # No args, launch GUI
+        *) echo "Unknown command: $1"; print_help; exit 1 ;;
     esac
-done
+
+    # --- MAIN MENU LOOP ---
+    load_settings         # Load persisted user preferences
+    check_for_updates     # Check on startup; prompts if update available (with changelog)
+    show_changelog_once   # Show changelog once after a fresh upgrade
+
+    while true; do
+        clear
+        echo "=================================================================="
+        echo "               G I T   I D E N T I T Y   M A N A G E R            "
+        echo "                        Version: $VERSION                         "
+        echo "=================================================================="
+        echo ""
+        echo "    [ 1 ] Setup New Account (Generate Keys)"
+        echo "    [ 2 ] Import Existing Account (Link Keys)"
+        echo "    [ 3 ] Switch Account (Local / Global)"
+        echo "    [ 4 ] View All Profiles"
+        echo "    [ 5 ] Modify a Profile"
+        echo "    [ 6 ] Delete a Profile"
+        echo "    [ 7 ] View Public Keys (SSH/GPG)"
+        echo "    [ 8 ] Run Doctor (Validate & Auto-Fix)"
+        echo "    [ 9 ] Quick Guide & How-To"
+        echo "    [10 ] Settings"
+        echo "    [ 0 ] Exit"
+        echo ""
+        echo "=================================================================="
+        read -p " -> Select an option [0-9/10]: " choice
+
+        case $choice in
+            1)  setup_identity ;;
+            2)  import_identity ;;
+            3)  switch_identity ;;
+            4)  view_profiles ;;
+            5)  modify_identity ;;
+            6)  delete_identity ;;
+            7)  print_keys ;;
+            8)  run_doctor ;;
+            9)  quick_guide ;;
+            10) manage_settings ;;
+            0)  echo "" ; echo " Exiting system. Goodbye." ; echo "" ; exit 0 ;;
+            *)  echo "" ; echo " [!] Invalid option." ; sleep 1 ;;
+        esac
+    done
+fi

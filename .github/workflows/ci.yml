@@ -1,0 +1,94 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  syntax-check:
+    name: Bash Syntax Check (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Validate Bash syntax — git-identity-manager.sh
+        run: bash -n git-identity-manager.sh
+
+      - name: Validate Bash syntax — install.sh
+        run: bash -n install.sh
+
+  dual-registration-check:
+    name: Dual Registration Convention Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check CLI parser and TUI menu are in sync
+        run: |
+          echo "--- Functions registered in CLI case block ---"
+          CLI_CMDS=$(grep -E '^\s+(setup|import|switch|global|view|doctor|update|keys|modify|delete)' git-identity-manager.sh | grep ') ' | grep -v '#' | awk -F')' '{print $1}' | tr -d ' ' | sort)
+          echo "$CLI_CMDS"
+
+          echo ""
+          echo "--- Checking VERSION variable is present ---"
+          grep -E '^VERSION=' git-identity-manager.sh || { echo "[!] VERSION variable missing!"; exit 1; }
+
+          echo ""
+          echo "--- Checking SSH IdentitiesOnly safety rule ---"
+          COUNT=$(grep -c 'IdentitiesOnly yes' git-identity-manager.sh || true)
+          echo "IdentitiesOnly yes occurrences: $COUNT"
+          [ "$COUNT" -ge 1 ] || { echo "[!] SSH safety rule 'IdentitiesOnly yes' not found!"; exit 1; }
+
+          echo ""
+          echo "[+] Convention checks passed."
+
+  unit-tests:
+    name: Unit Tests (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install bats-core (Ubuntu)
+        if: runner.os == 'Linux'
+        run: sudo apt-get install -y bats
+
+      - name: Install bats-core (macOS)
+        if: runner.os == 'macOS'
+        run: brew install bats-core
+
+      - name: Run test suite
+        run: bash tests/run_tests.sh
+
+  pr-title-check:
+    name: Conventional Commit PR Title
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - name: Check PR title follows Conventional Commits
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          PATTERN='^(feat|fix|docs|ci|refactor|test|chore|perf|style)(\(.+\))?: .+'
+          if echo "$PR_TITLE" | grep -qE "$PATTERN"; then
+            echo "[+] PR title is valid: $PR_TITLE"
+          else
+            echo "[!] PR title does not follow Conventional Commits format."
+            echo "    Expected: feat|fix|docs|ci|refactor|test|chore: <description>"
+            echo "    Got: $PR_TITLE"
+            exit 1
+          fi

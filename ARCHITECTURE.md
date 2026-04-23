@@ -1,6 +1,6 @@
 # Git Identity Manager - Architecture Context
 
-This project is a zero-dependency Bash script (`git-manager.sh`) that manages multiple Git identities, SSH keys, and GPG signatures.
+This project is a zero-dependency Bash script (`git-identity-manager.sh`) that manages multiple Git identities, SSH keys, and GPG signatures.
 
 ## Core Rules & File Paths
 When modifying this script, you must adhere to the following file structures:

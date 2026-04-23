@@ -4,8 +4,8 @@
 A **zero-dependency, pure Bash** TUI/CLI tool (v1.1.0) for managing multiple Git identities on one machine.
 Handles SSH key generation (`ed25519`), GPG signing key setup, and `git config` switching.
 
-- **Entry point**: `git-manager.sh` — single-file architecture; do NOT split into multiple files
-- **Installer**: `install.sh` — downloads `git-manager.sh` to `~/.local/bin/git-manager`
+- **Entry point**: `git-identity-manager.sh` — single-file architecture; do NOT split into multiple files
+- **Installer**: `install.sh` — downloads `git-identity-manager.sh` to `~/.local/bin/git-identity-manager`
 - **Language**: Bash only — no npm, pip, gem, cargo, or any external runtime
 
 ## Runtime File Paths
@@ -48,21 +48,21 @@ profiles=()     # Array populated by get_profiles()
 
 ## CLI Commands
 ```
-git-manager setup               # Generate new keys and create profile
-git-manager import              # Link existing SSH/GPG keys
-git-manager switch <profile>    # Apply profile to current repo (local scope)
-git-manager global <profile>    # Apply profile globally
-git-manager view                # List all profiles in a table
-git-manager doctor              # Health check + auto-fix
-git-manager update              # Force update check
-git-manager --help              # Show CLI help
+git-identity-manager setup               # Generate new keys and create profile
+git-identity-manager import              # Link existing SSH/GPG keys
+git-identity-manager switch <profile>    # Apply profile to current repo (local scope)
+git-identity-manager global <profile>    # Apply profile globally
+git-identity-manager view                # List all profiles in a table
+git-identity-manager doctor              # Health check + auto-fix
+git-identity-manager update              # Force update check
+git-identity-manager --help              # Show CLI help
 ```
 
 ## Code Conventions
-1. **Single-file rule** — all code stays in `git-manager.sh`. Never create helper scripts.
+1. **Single-file rule** — all code stays in `git-identity-manager.sh`. Never create helper scripts.
 2. **Dual registration** — every new function MUST be added to both:
-   - The CLI `case "$1" in` argument parser (bottom of `git-manager.sh`)
-   - The TUI `while true; do` main menu loop (bottom of `git-manager.sh`)
+   - The CLI `case "$1" in` argument parser (bottom of `git-identity-manager.sh`)
+   - The TUI `while true; do` main menu loop (bottom of `git-identity-manager.sh`)
 3. **Interactive function pattern**:
    ```bash
    my_feature() {
@@ -82,10 +82,14 @@ git-manager --help              # Show CLI help
    - ` [*] ` — Status / in-progress
 5. **SSH safety** — every generated SSH conf block MUST include `IdentitiesOnly yes`
 6. **Profile purity** — profile files contain ONLY `git config` commands (name, email, signingkey)
+7. **Version bump & CHANGELOG** — whenever `VERSION` is incremented in `git-identity-manager.sh`, you MUST also update `CHANGELOG.md`:
+   - Add a new `## [X.Y.Z] - YYYY-MM-DD` section at the top (below the header)
+   - Group changes under `### Added`, `### Fixed`, `### Changed`, or `### Removed`
+   - Create `CHANGELOG.md` using [Keep a Changelog](https://keepachangelog.com) format if it does not exist yet
 
 ## Hard Constraints
 - Never add any package manager dependency (npm, pip, gem, cargo, etc.)
-- Never split `git-manager.sh` into multiple files
+- Never split `git-identity-manager.sh` into multiple files
 - Never write directly to `~/.ssh/config` (the `Include` line is bootstrapped at script startup only)
 - Never store SSH private key content or passwords in profile files or any tracked file
 - Never use Python, Node.js, Ruby, or any language other than Bash

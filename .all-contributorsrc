@@ -1,0 +1,28 @@
+{
+  "projectName": "git-identity-manager",
+  "projectOwner": "antronic",
+  "repoType": "github",
+  "repoHost": "https://github.com",
+  "files": [
+    "README.md"
+  ],
+  "imageSize": 100,
+  "commit": true,
+  "commitConvention": "angular",
+  "contributors": [
+    {
+      "login": "antronic",
+      "name": "Jirachai Chansivanon",
+      "avatar_url": "https://avatars.githubusercontent.com/u/antronic",
+      "profile": "https://github.com/antronic",
+      "contributions": [
+        "code",
+        "doc",
+        "ideas",
+        "maintenance"
+      ]
+    }
+  ],
+  "contributorsPerLine": 7,
+  "skipCi": true
+}

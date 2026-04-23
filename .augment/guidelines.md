@@ -4,8 +4,8 @@
 A **zero-dependency, pure Bash** TUI/CLI tool (v1.1.0) that manages multiple Git identities on a single machine. It generates and isolates SSH (`ed25519`) and GPG keys per identity, switches `git config` values locally or globally, and injects shell aliases for instant switching.
 
 - **Language**: Bash only — absolutely no external runtimes or package managers
-- **Architecture**: Single-file (`git-manager.sh`) — do NOT split into multiple files
-- **Installer**: `install.sh` downloads `git-manager.sh` to `~/.local/bin/git-manager`
+- **Architecture**: Single-file (`git-identity-manager.sh`) — do NOT split into multiple files
+- **Installer**: `install.sh` downloads `git-identity-manager.sh` to `~/.local/bin/git-identity-manager`
 - **Repository**: https://github.com/antronic/git-identity-manager
 
 ---
@@ -14,7 +14,7 @@ A **zero-dependency, pure Bash** TUI/CLI tool (v1.1.0) that manages multiple Git
 
 ### Source Files
 ```
-git-manager.sh      ← Entire application — single source of truth
+git-identity-manager.sh      ← Entire application — single source of truth
 install.sh          ← One-liner curl installer
 ARCHITECTURE.md     ← Architecture reference and constraints
 ```
@@ -65,14 +65,14 @@ profiles=()            # Populated by get_profiles()
 
 ## CLI Interface
 ```
-git-manager setup               # Generate keys + create profile
-git-manager import              # Link existing SSH/GPG keys
-git-manager switch <profile>    # Apply profile to current repo (local)
-git-manager global <profile>    # Apply profile globally
-git-manager view                # List all profiles in a table
-git-manager doctor              # Health check + auto-fix
-git-manager update              # Force update check
-git-manager --help              # Show CLI help
+git-identity-manager setup               # Generate keys + create profile
+git-identity-manager import              # Link existing SSH/GPG keys
+git-identity-manager switch <profile>    # Apply profile to current repo (local)
+git-identity-manager global <profile>    # Apply profile globally
+git-identity-manager view                # List all profiles in a table
+git-identity-manager doctor              # Health check + auto-fix
+git-identity-manager update              # Force update check
+git-identity-manager --help              # Show CLI help
 ```
 
 ---
@@ -80,16 +80,16 @@ git-manager --help              # Show CLI help
 ## Code Conventions
 
 ### 1. Single-File Architecture
-All logic lives in `git-manager.sh`. Never extract to helper scripts.
+All logic lives in `git-identity-manager.sh`. Never extract to helper scripts.
 
 ### 2. Dual Registration for New Features
 Every new function must be registered in **both**:
 ```bash
-# CLI parser (bottom of git-manager.sh)
+# CLI parser (bottom of git-identity-manager.sh)
 case "$1" in
     myfeature) my_feature "$2"; exit 0 ;;
 
-# TUI menu loop (bottom of git-manager.sh)
+# TUI menu loop (bottom of git-identity-manager.sh)
 case $choice in
     N) my_feature ;;
 ```
@@ -122,7 +122,22 @@ Every SSH conf block written to `~/.ssh/git-manager.d/` MUST contain:
 IdentitiesOnly yes
 ```
 
-### 6. Profile File Format
+### 6. Version Bump & CHANGELOG Rule
+Whenever `VERSION` is incremented in `git-identity-manager.sh`, you **MUST** also update `CHANGELOG.md`:
+- Add a new `## [X.Y.Z] - YYYY-MM-DD` section at the top of the changelog (below the header)
+- Group entries under `### Added`, `### Fixed`, `### Changed`, or `### Removed` as appropriate
+- If `CHANGELOG.md` does not exist yet, create it using [Keep a Changelog](https://keepachangelog.com) format
+
+```markdown
+## [1.2.0] - 2026-04-23
+### Added
+- Brief description of the new feature
+
+### Fixed
+- Brief description of the bug fix
+```
+
+### 7. Profile File Format
 Profile files contain ONLY `git config` commands — no secrets, no private key material:
 ```bash
 git config user.name "Your Name"
@@ -135,7 +150,7 @@ git config commit.gpgsign true               # optional
 
 ## Hard Constraints — Never Violate
 - **No dependencies** — never add npm, pip, gem, cargo, or any package manager
-- **No file splits** — `git-manager.sh` stays as a single file
+- **No file splits** — `git-identity-manager.sh` stays as a single file
 - **No direct `~/.ssh/config` writes** — the `Include` line is bootstrapped at startup only
 - **No secrets in tracked files** — no SSH private keys or passwords
 - **Bash only** — no Python, Node.js, Ruby, or any other language

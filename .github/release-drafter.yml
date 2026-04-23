@@ -1,0 +1,65 @@
+name-template: 'Git Identity Manager v$RESOLVED_VERSION'
+tag-template: 'v$RESOLVED_VERSION'
+
+categories:
+  - title: '🚀 New Features'
+    labels:
+      - 'feat'
+      - 'feature'
+      - 'enhancement'
+  - title: '🐛 Bug Fixes'
+    labels:
+      - 'fix'
+      - 'bug'
+  - title: '📖 Documentation'
+    labels:
+      - 'docs'
+      - 'documentation'
+  - title: '⚙️ CI / Maintenance'
+    labels:
+      - 'ci'
+      - 'chore'
+      - 'maintenance'
+      - 'dependencies'
+  - title: '♻️ Refactoring'
+    labels:
+      - 'refactor'
+
+change-template: '- $TITLE @$AUTHOR (#$NUMBER)'
+
+change-title-escapes: '\<*_&'
+
+version-resolver:
+  major:
+    labels:
+      - 'major'
+      - 'breaking-change'
+  minor:
+    labels:
+      - 'feat'
+      - 'feature'
+      - 'enhancement'
+  patch:
+    labels:
+      - 'fix'
+      - 'bug'
+      - 'docs'
+      - 'ci'
+      - 'chore'
+      - 'refactor'
+  default: patch
+
+template: |
+  ## What's Changed
+
+  $CHANGES
+
+  ---
+
+  ### Install / Upgrade
+  ```bash
+  curl -sL https://raw.githubusercontent.com/antronic/git-identity-manager/main/install.sh | bash
+  ```
+  Or upgrade in-place: `git-identity-manager update`
+
+  **Full Changelog**: https://github.com/antronic/git-identity-manager/compare/$PREVIOUS_TAG...$RESOLVED_VERSION
