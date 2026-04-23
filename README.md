@@ -39,7 +39,9 @@ A zero-dependency, pure Bash TUI/CLI tool to effortlessly manage multiple Git id
 - [x] **Anti-Bleed Architecture:** Uses isolated `Include` files and `IdentitiesOnly yes` to prevent the SSH Agent from using the wrong keys.
 - [x] **System Doctor:** Built-in health check to repair file permissions, missing configs, and broken aliases.
 - [x] **Import Existing Keys:** Securely link your existing SSH/GPG keys to a new profile.
-- [x] **Auto-Updater:** Self-upgrades to the latest version directly from GitHub.
+- [x] **Auto-Updater:** Self-upgrades to the latest version directly from GitHub (explicit `y` confirmation required).
+- [x] **Settings Menu:** Toggle auto-update checks and changelog display; trigger manual update checks — all persisted to `~/.git-manager/config.env`.
+- [x] **Active Profile Display:** Current local and global identities shown on the main menu and in the Switch screen.
 - [ ] *(Next)* **Profile Backup/Restore:** Export profiles to a secure `.tar.gz` archive.
 - [ ] *(Next)* **Repo Auto-Detection:** Automatically detect which identity belongs to a folder upon `cd`.
 
@@ -69,7 +71,9 @@ git-identity-manager
 ```
  ==================================================================
               G I T   I D E N T I T Y   M A N A G E R
-                         Version: 1.1.0
+                         Version: 1.2.2
+ ==================================================================
+  Active  →  local: work  |  global: personal
  ==================================================================
 
      [ 1 ] Setup New Account (Generate Keys)
@@ -81,10 +85,11 @@ git-identity-manager
      [ 7 ] View Public Keys (SSH/GPG)
      [ 8 ] Run Doctor (Validate & Auto-Fix)
      [ 9 ] Quick Guide & How-To
+     [10 ] Settings
      [ 0 ] Exit
 
  ==================================================================
- -> Select an option [0-9]:
+ -> Select an option [0-9/10]:
 ```
 
 #### Setting Up a New Profile (Option 1)
@@ -306,12 +311,12 @@ bats --filter "finalize_profile" tests/test_profiles.bats
 
 | Suite | Tests | What it covers |
 |-------|------:|----------------|
-| `test_structure.bats` | 16 | Syntax checks, VERSION format, SSH safety rules, CLI registration |
-| `test_profiles.bats` | 12 | `get_profiles`, `finalize_profile`, alias injection |
-| `test_switch.bats` | 10 | `switch_identity` local & global, error handling |
+| `test_structure.bats` | 22 | Syntax checks, VERSION format, SSH safety rules, CLI registration, Settings symbols |
+| `test_profiles.bats` | 14 | `get_profiles`, `finalize_profile`, alias injection, GPG status detection |
+| `test_switch.bats` | 16 | `switch_identity` local & global, `get_active_profile`, `active_status_line` |
 | `test_release.bats` | 11 | `bump_version` patch / minor / major logic |
-| `test_changelog.bats` | 8 | `show_changelog_once`, `fetch_changelog` JSON parsing |
-| **Total** | **57** | |
+| `test_changelog.bats` | 15 | `show_changelog_once`, `fetch_changelog`, Settings guards |
+| **Total** | **78** | |
 
 > **Note:** Tests are fully isolated — each test gets its own `$HOME` in a temp directory and never touches your real `~/.git-manager`, `~/.ssh`, or shell RC files.
 

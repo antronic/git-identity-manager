@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.3] - 2026-04-23
+
+### Changed
+- README: update TUI screenshot to v1.2.2 (active profile status line, Settings option, new prompt)
+- README: add Settings menu and active profile display to the Features list
+- README: update test-suite table to reflect current 78 tests across all 5 suites
+
 ## [1.2.2] - 2026-04-23
 
 ### Fixed
