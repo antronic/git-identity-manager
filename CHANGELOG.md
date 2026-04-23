@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.1] - 2026-04-23
+
+### Changed
+- README: remove `color=lightgrey` override from license badge so it uses the default shield colour
+
 ## [1.2.0] - 2026-04-23
 
 ### Added

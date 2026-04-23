@@ -3,7 +3,7 @@
 [![GitHub Release](https://img.shields.io/github/v/release/antronic/git-identity-manager?style=flat-square&color=blue)](https://github.com/antronic/git-identity-manager/releases/latest)
 [![GitHub Downloads (all releases)](https://img.shields.io/github/downloads/antronic/git-identity-manager/total?style=flat-square&label=downloads&color=brightgreen)](https://github.com/antronic/git-identity-manager/releases)
 [![GitHub Stars](https://img.shields.io/github/stars/antronic/git-identity-manager?style=flat-square&color=yellow)](https://github.com/antronic/git-identity-manager/stargazers)
-[![License: MIT](https://img.shields.io/github/license/antronic/git-identity-manager?style=flat-square&color=lightgrey)](LICENSE)
+[![License: MIT](https://img.shields.io/github/license/antronic/git-identity-manager?style=flat-square)](LICENSE)
 [![ShellCheck](https://img.shields.io/github/actions/workflow/status/antronic/git-identity-manager/shellcheck.yml?style=flat-square&label=shellcheck)](https://github.com/antronic/git-identity-manager/actions/workflows/shellcheck.yml)
 [![CI](https://img.shields.io/github/actions/workflow/status/antronic/git-identity-manager/ci.yml?style=flat-square&label=ci)](https://github.com/antronic/git-identity-manager/actions/workflows/ci.yml)
 
