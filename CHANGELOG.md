@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.4] - 2026-04-23
+
+### Fixed
+- `fetch_changelog`: release notes always showed "No release notes available" after upgrade
+  because the GitHub API returns pretty-printed JSON (`"body": "..."` with a space after `:`),
+  but the grep pattern was `"body":"` (no space) so it never matched.
+  Replaced the fragile `grep -o '"body":"[^"]*"'` with a `grep | sed` pipeline that strips
+  leading whitespace and the optional space after `:`, and also handles escaped quotes (`\"`)
+  in the body text.
+- Added a regression BATS test (`fetch_changelog parses body from pretty-printed JSON`) to
+  prevent the same issue from reappearing (79 tests total).
+
 ## [1.2.3] - 2026-04-23
 
 ### Changed

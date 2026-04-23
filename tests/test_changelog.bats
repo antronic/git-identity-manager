@@ -136,17 +136,27 @@ teardown() {
 
 # --- fetch_changelog JSON parsing ------------------------------------------
 
-@test "fetch_changelog parses body from release JSON" {
-    # Restore real fetch_changelog and test its sed/grep parsing
+@test "fetch_changelog parses body from compact JSON (no space after colon)" {
     unset -f fetch_changelog
     load_script
-
-    # Mock curl to return a synthetic JSON payload
     curl() {
         echo '{"tag_name":"v1.2.0","body":"### Added\n- New thing\n### Fixed\n- Bug fix"}'
     }
     export -f curl
+    run fetch_changelog "1.2.0"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"Added"* ]] || [[ "$output" == *"New thing"* ]]
+}
 
+@test "fetch_changelog parses body from pretty-printed JSON (space after colon)" {
+    # Regression: GitHub API returns pretty-printed JSON with 'body': '...' (space after :)
+    # The old grep pattern '"body":"' missed this entirely.
+    unset -f fetch_changelog
+    load_script
+    curl() {
+        printf '{\n  "tag_name": "v1.2.0",\n  "body": "### Added\\n- New thing\\n### Fixed\\n- Bug fix"\n}\n'
+    }
+    export -f curl
     run fetch_changelog "1.2.0"
     [ "$status" -eq 0 ]
     [[ "$output" == *"Added"* ]] || [[ "$output" == *"New thing"* ]]

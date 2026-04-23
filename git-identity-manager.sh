@@ -129,8 +129,12 @@ fetch_changelog() {
         release_json=$(curl -sL --max-time 5 "$CHANGELOG_URL" 2>/dev/null)
     fi
 
-    # Extract body field — works without jq by parsing the JSON manually
-    echo "$release_json" | grep -o '"body":"[^"]*"' | sed 's/"body":"//;s/"$//' | sed 's/\\r\\n/\n/g;s/\\n/\n/g'
+    # Extract body field — works without jq; handles both compact and pretty-printed JSON
+    # (GitHub API returns pretty-printed JSON with a space after "body": )
+    echo "$release_json" | \
+        grep '"body"' | \
+        sed 's/^[[:space:]]*"body":[[:space:]]*"//; s/"[[:space:]]*,\{0,1\}[[:space:]]*$//' | \
+        sed 's/\\r\\n/\n/g; s/\\n/\n/g; s/\\"/"/g'
 }
 
 # --- HELPER: SHOW CHANGELOG ONCE AFTER AN UPGRADE ---
