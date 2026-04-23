@@ -33,12 +33,31 @@ jobs:
           fi
           echo "[+] Version match confirmed: $SCRIPT_VERSION"
 
+      - name: Extract changelog section
+        id: changelog
+        run: |
+          VERSION="${{ steps.version.outputs.VERSION }}"
+          NOTES=$(awk -v ver="$VERSION" \
+            'found && /^## \[/{exit}
+             /^## \[/ && index($0, "["ver"]"){found=1; next}
+             found{print}' CHANGELOG.md)
+          # Write multiline output safely
+          {
+            echo "notes<<EOF"
+            echo "$NOTES"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           name: "Git Identity Manager v${{ steps.version.outputs.VERSION }}"
           body: |
             ## 🔮 Git Identity Manager v${{ steps.version.outputs.VERSION }}
+
+            ${{ steps.changelog.outputs.notes }}
+
+            ---
 
             ### Install / Upgrade
             ```bash

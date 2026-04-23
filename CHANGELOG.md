@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.9] - 2026-04-23
+
+### Changed
+- GitHub Actions release workflow (`release.yml`): the generated GitHub Release body now
+  automatically includes the relevant section extracted from `CHANGELOG.md` using `awk`,
+  so release notes on GitHub always reflect the file instead of showing a generic message.
+
 ## [1.2.8] - 2026-04-23
 
 ### Changed
@@ -154,7 +161,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - GitHub Actions: ShellCheck, CI (syntax check), Release, Stale, Welcome, Release Drafter
 - Zero external dependencies (pure Bash)
 
-[Unreleased]: https://github.com/antronic/git-identity-manager/compare/v1.2.8...HEAD
+[Unreleased]: https://github.com/antronic/git-identity-manager/compare/v1.2.9...HEAD
+[1.2.9]: https://github.com/antronic/git-identity-manager/compare/v1.2.8...v1.2.9
 [1.2.8]: https://github.com/antronic/git-identity-manager/compare/v1.2.7...v1.2.8
 [1.2.7]: https://github.com/antronic/git-identity-manager/compare/v1.2.6...v1.2.7
 [1.2.6]: https://github.com/antronic/git-identity-manager/compare/v1.2.5...v1.2.6
