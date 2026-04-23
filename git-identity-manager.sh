@@ -116,6 +116,7 @@ show_changelog_once() {
 }
 
 # --- AUTO UPDATE CHECKER ---
+# shellcheck disable=SC2120  # $@ forwarded to exec for restart; callers never pass args intentionally
 check_for_updates() {
     [[ "${SETTING_AUTO_UPDATE_CHECK:-true}" == "false" ]] && return 0
     if ! command -v curl &> /dev/null; then return; fi
@@ -147,6 +148,7 @@ check_for_updates() {
                 chmod +x "$0"
                 echo " [+] Upgrade complete! Restarting..."
                 sleep 1
+                # shellcheck disable=SC2120
                 exec "$0" "$@"
             else
                 echo " [!] Update failed. Check your internet connection."
@@ -402,6 +404,7 @@ switch_identity() {
         if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
             echo " [!] Error: You are not currently inside a Git repository."
         else
+            # shellcheck source=/dev/null
             source "$PROFILE_FILE"
             echo " [+] Successfully applied '$TARGET_PROFILE' to LOCAL repository."
         fi
