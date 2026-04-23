@@ -1,0 +1,72 @@
+# Git Identity Manager — Windsurf Rules
+
+## Project
+Zero-dependency, pure Bash TUI/CLI tool (v1.1.0) for managing multiple Git identities.
+Single entry point: `git-manager.sh`. Do NOT create additional script files.
+Language: Bash only. No npm, pip, gem, cargo, or any external runtime.
+
+## Runtime Paths
+- `~/.git-manager/profiles/<nickname>` → profile (pure `git config` commands)
+- `~/.ssh/git-manager.d/<nickname>.conf` → isolated SSH Host block per identity
+- `~/.ssh/id_ed25519_<nickname>` → generated SSH private key
+- `~/.ssh/config` → NEVER write directly; `Include` bootstrap is injected at startup only
+- `~/.bashrc` / `~/.zshrc` → aliases: `as-<nick>` (local) and `as-<nick>-global`
+
+## Script Variables
+```bash
+VERSION="1.1.0"
+MANAGER_DIR="$HOME/.git-manager"
+PROFILES_DIR="$MANAGER_DIR/profiles"
+SSH_CONF_DIR="$HOME/.ssh/git-manager.d"
+SHELL_PROFILE   # ~/.bashrc or ~/.zshrc (auto-detected)
+CLI_MODE        # "true" = CLI; "" = TUI/interactive
+profiles=()     # Array populated by get_profiles()
+```
+
+## Functions
+| Function | Description |
+|----------|-------------|
+| `get_profiles()` | Fills `profiles[]` array from `PROFILES_DIR` |
+| `setup_identity()` | Generates new SSH ed25519 + GPG keys |
+| `import_identity()` | Links existing SSH/GPG keys to a profile |
+| `finalize_profile()` | Writes profile, SSH conf, and shell aliases |
+| `switch_identity($profile, $scope)` | Applies profile locally or globally |
+| `view_profiles()` | Tabular listing of all profiles |
+| `modify_identity()` | Updates name/email of a profile |
+| `delete_identity()` | Removes profile and associated files |
+| `print_keys()` | Shows SSH/GPG public keys for a profile |
+| `run_doctor()` | Auto-fixes permissions, configs, and aliases |
+| `check_for_updates()` | Checks and applies updates from GitHub |
+| `print_help()` | Prints CLI usage text |
+| `quick_guide()` | In-TUI how-to guide |
+
+## CLI Interface
+```
+git-manager setup               # Generate keys + create profile
+git-manager import              # Link existing SSH/GPG keys
+git-manager switch <profile>    # Apply profile locally
+git-manager global <profile>    # Apply profile globally
+git-manager view                # List all profiles
+git-manager doctor              # Health check + auto-fix
+git-manager update              # Force update check
+git-manager --help              # Show help
+```
+
+## Rules
+1. All code lives in `git-manager.sh`. Never split into multiple files.
+2. Every new function must be registered in BOTH:
+   - `case "$1" in` CLI argument parser (bottom of file)
+   - `while true; do` TUI main menu loop (bottom of file)
+3. Interactive functions must:
+   - Start with `clear`
+   - End with `[[ -z "$CLI_MODE" ]] && read -p " Press Enter to return to the menu..."`
+4. Message prefixes: `[?]` prompt · `[i]` info · `[+]` success · `[!]` error · `[*]` status
+5. Every SSH conf block written to `~/.ssh/git-manager.d/` MUST contain `IdentitiesOnly yes`
+6. Profile files contain ONLY `git config` commands — no secrets, no key material
+
+## Prohibited
+- No external package dependencies of any kind
+- No splitting `git-manager.sh` into multiple files
+- No direct writes to `~/.ssh/config`
+- No SSH private key content or passwords stored in files
+- No languages other than Bash
