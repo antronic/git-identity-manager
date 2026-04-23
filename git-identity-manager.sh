@@ -181,9 +181,8 @@ check_for_updates() {
             echo "------------------------------------------------------------------"
         fi
         echo ""
-        read -p " [?] Would you like to auto-upgrade now? (Y/n): " DO_UPGRADE
-        DO_UPGRADE=${DO_UPGRADE:-Y}
-        if [[ "$DO_UPGRADE" =~ ^[Yy]$ ]]; then
+        read -rp " [?] Would you like to auto-upgrade now? (y/N): " DO_UPGRADE
+        if [[ "${DO_UPGRADE:-N}" =~ ^[Yy]$ ]]; then
             echo " [*] Downloading update..."
             if curl -sL "$UPDATE_URL" -o "$0.tmp"; then
                 mv "$0.tmp" "$0"

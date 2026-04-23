@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.2] - 2026-04-23
+
+### Fixed
+- `check_for_updates`: typing `n` at the upgrade prompt still triggered the upgrade because the
+  default value was `Y` — if `read` returned an empty string for any reason (e.g. a buffered
+  `Enter` keypress in stdin), the script silently defaulted to `Y` and proceeded with the download.
+  Default is now `N`; an explicit `y` or `Y` is required to upgrade.
+  Prompt changed from `(Y/n)` to `(y/N)` to reflect the safe default.
+  Added `-r` flag to `read` to prevent backslash interpretation.
+
 ## [1.2.1] - 2026-04-23
 
 ### Changed
