@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.5] - 2026-04-23
+
+### Added
+- Settings → Check for Updates Now: when already on the latest version, now shows
+  `[✓] You are on the latest version!` with the current version number instead of
+  silently returning with no feedback.
+- `check_for_updates` accepts an optional `--explicit` flag; startup calls it without
+  the flag (stays silent when up to date), the Settings menu calls it with `--explicit`
+  (shows the confirmation message).
+- 3 new BATS tests covering the explicit/silent behaviour split (82 tests total).
+
 ## [1.2.4] - 2026-04-23
 
 ### Fixed

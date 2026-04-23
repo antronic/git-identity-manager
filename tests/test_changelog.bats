@@ -104,6 +104,42 @@ teardown() {
     [[ "$output" != *"CURL_CALLED"* ]]
 }
 
+@test "check_for_updates silent when already up to date (no --explicit flag)" {
+    # Startup path: no message shown when already on latest version
+    curl() { echo "VERSION=\"$VERSION\""; }
+    export -f curl
+    run check_for_updates
+    [ "$status" -eq 0 ]
+    [[ "$output" != *"latest"* ]]
+    [[ "$output" != *"up to date"* ]]
+}
+
+@test "check_for_updates --explicit shows up-to-date message when already on latest" {
+    CLI_MODE=true
+    curl() { echo "VERSION=\"$VERSION\""; }
+    export -f curl
+    run check_for_updates --explicit
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"latest version"* ]]
+    [[ "$output" == *"$VERSION"* ]]
+}
+
+@test "check_for_updates --explicit still shows update prompt when new version exists" {
+    # Run in a subshell with stdin closed so the upgrade read-prompt returns immediately
+    run bash -c "
+        source '${BATS_TEST_DIRNAME}/../git-identity-manager.sh'
+        CLI_MODE=true
+        curl() { echo 'VERSION=\"99.9.9\"'; }
+        export -f curl
+        fetch_changelog() { echo ''; }
+        export -f fetch_changelog
+        check_for_updates --explicit
+    " < /dev/null
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"UPDATE AVAILABLE"* ]]
+    [[ "$output" == *"99.9.9"* ]]
+}
+
 # --- Settings: load_settings and save_setting helpers ----------------------
 
 @test "load_settings sets defaults when config file is absent" {

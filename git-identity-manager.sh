@@ -162,8 +162,13 @@ show_changelog_once() {
 }
 
 # --- AUTO UPDATE CHECKER ---
-# shellcheck disable=SC2120  # $@ forwarded to exec for restart; callers never pass args intentionally
+# Pass --explicit when triggering manually (e.g. from Settings) so the
+# "already up to date" message is shown.  Startup calls it without args
+# and stays silent when already on the latest version.
 check_for_updates() {
+    local explicit=false
+    [[ "${1:-}" == "--explicit" ]] && explicit=true && shift
+
     [[ "${SETTING_AUTO_UPDATE_CHECK:-true}" == "false" ]] && return 0
     if ! command -v curl &> /dev/null; then return; fi
 
@@ -193,7 +198,6 @@ check_for_updates() {
                 chmod +x "$0"
                 echo " [+] Upgrade complete! Restarting..."
                 sleep 1
-                # shellcheck disable=SC2120
                 exec "$0" "$@"
             else
                 echo " [!] Update failed. Check your internet connection."
@@ -201,6 +205,12 @@ check_for_updates() {
                 sleep 2
             fi
         fi
+    elif [[ "$explicit" == "true" ]]; then
+        echo "=================================================================="
+        echo " [✓] You are on the latest version!"
+        echo "     Current Version : $VERSION"
+        echo "=================================================================="
+        [[ -z "$CLI_MODE" ]] && read -p " Press Enter to continue..." || true
     fi
 }
 
@@ -854,7 +864,7 @@ manage_settings() {
                 # Temporarily bypass the setting guard so a manual trigger always works
                 local _saved="$SETTING_AUTO_UPDATE_CHECK"
                 SETTING_AUTO_UPDATE_CHECK="true"
-                check_for_updates
+                check_for_updates --explicit
                 SETTING_AUTO_UPDATE_CHECK="$_saved"
                 ;;
             0) break ;;
