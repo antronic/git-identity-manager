@@ -116,3 +116,62 @@ teardown() {
         [ "$val" = "alice@work.com" ]
     )
 }
+
+# --- get_active_profile -------------------------------------------------------
+
+@test "get_active_profile sets ACTIVE_GLOBAL to matching profile" {
+    make_fake_profile "personal" "Bob Home" "bob@home.com"
+    export GIT_CONFIG_GLOBAL="${BATS_TMPDIR}/gitconfig_global_${BATS_TEST_NUMBER}"
+    git config --global user.email "bob@home.com"
+    git config --global user.name "Bob Home"
+    get_active_profile
+    [ "$ACTIVE_GLOBAL" = "personal" ]
+}
+
+@test "get_active_profile leaves ACTIVE_GLOBAL empty when no profile matches" {
+    make_fake_profile "work" "Alice Work" "alice@work.com"
+    export GIT_CONFIG_GLOBAL="${BATS_TMPDIR}/gitconfig_global_${BATS_TEST_NUMBER}"
+    git config --global user.email "nobody@nowhere.com"
+    git config --global user.name "Nobody"
+    get_active_profile
+    [ "$ACTIVE_GLOBAL" = "" ]
+}
+
+@test "get_active_profile sets ACTIVE_LOCAL inside a matching git repo" {
+    make_fake_profile "work" "Alice Work" "alice@work.com"
+    repo=$(make_fake_git_repo)
+    (
+        cd "$repo"
+        source "$SCRIPT"
+        git config --local user.email "alice@work.com"
+        get_active_profile
+        [ "$ACTIVE_LOCAL" = "work" ]
+    )
+}
+
+@test "get_active_profile leaves ACTIVE_LOCAL empty outside a git repo" {
+    make_fake_profile "work" "Alice Work" "alice@work.com"
+    (
+        cd "${BATS_TMPDIR}"
+        source "$SCRIPT"
+        get_active_profile
+        [ "$ACTIVE_LOCAL" = "" ]
+    )
+}
+
+@test "active_status_line contains global profile name when matched" {
+    make_fake_profile "personal" "Bob Home" "bob@home.com"
+    export GIT_CONFIG_GLOBAL="${BATS_TMPDIR}/gitconfig_global_${BATS_TEST_NUMBER}"
+    git config --global user.email "bob@home.com"
+    git config --global user.name "Bob Home"
+    run active_status_line
+    [[ "$output" == *"personal"* ]]
+}
+
+@test "active_status_line shows 'none' when no profile matches global" {
+    make_fake_profile "work" "Alice Work" "alice@work.com"
+    export GIT_CONFIG_GLOBAL="${BATS_TMPDIR}/gitconfig_global_${BATS_TEST_NUMBER}"
+    # Empty / unset global config
+    run active_status_line
+    [[ "$output" == *"none"* ]]
+}

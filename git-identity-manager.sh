@@ -40,6 +40,48 @@ get_profiles() {
     fi
 }
 
+# --- HELPER: DETECT ACTIVE PROFILE (local + global) ---
+# Sets ACTIVE_LOCAL and ACTIVE_GLOBAL to the matching profile nickname (or "").
+get_active_profile() {
+    ACTIVE_LOCAL=""
+    ACTIVE_GLOBAL=""
+
+    local local_email global_email
+    local_email=""
+    global_email=$(git config --global user.email 2>/dev/null || true)
+
+    if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+        local_email=$(git config --local user.email 2>/dev/null || true)
+    fi
+
+    get_profiles
+    local p p_email pfile
+    for p in "${profiles[@]}"; do
+        pfile="$PROFILES_DIR/$p"
+        p_email=$(grep "^git config user.email" "$pfile" | cut -d'"' -f2)
+        if [[ -n "$local_email"  && "$p_email" == "$local_email"  ]]; then
+            ACTIVE_LOCAL="$p"
+        fi
+        if [[ -n "$global_email" && "$p_email" == "$global_email" ]]; then
+            ACTIVE_GLOBAL="$p"
+        fi
+    done
+}
+
+# --- HELPER: FORMAT ACTIVE STATUS LINE FOR DISPLAY ---
+active_status_line() {
+    get_active_profile
+    local local_label global_label
+    local_label="${ACTIVE_LOCAL:-none}"
+    global_label="${ACTIVE_GLOBAL:-none}"
+
+    if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+        echo " Active  →  local: $local_label  |  global: $global_label"
+    else
+        echo " Active  →  global: $global_label  (not inside a git repo)"
+    fi
+}
+
 # --- HELPER: LOAD SETTINGS FROM CONFIG FILE ---
 load_settings() {
     # Defaults
@@ -369,6 +411,8 @@ switch_identity() {
         echo "=================================================================="
         echo " [ SWITCH ]  APPLY AN IDENTITY"
         echo "=================================================================="
+        echo " $(active_status_line)"
+        echo "=================================================================="
         echo ""
         get_profiles
         if [ ${#profiles[@]} -eq 0 ]; then
@@ -376,12 +420,31 @@ switch_identity() {
             read -p " Press Enter to return..." && return
         fi
 
-        PS3=" [?] Select an identity to apply: "
-        select TARGET_PROFILE in "${profiles[@]}" "Cancel"; do
-            [[ "$TARGET_PROFILE" == "Cancel" ]] && return
-            [[ -n "$TARGET_PROFILE" ]] && break
-            echo " [!] Invalid selection."
+        echo " Available identities:"
+        local idx=1
+        for p in "${profiles[@]}"; do
+            local marker=""
+            [[ "$p" == "$ACTIVE_LOCAL"  && -n "$ACTIVE_LOCAL"  ]] && marker=" ← local"
+            [[ "$p" == "$ACTIVE_GLOBAL" && -n "$ACTIVE_GLOBAL" ]] && marker="$marker ← global"
+            printf "   %s) %s%s\n" "$idx" "$p" "$marker"
+            (( idx++ )) || true
         done
+        printf "   %s) %s\n" "$idx" "Cancel"
+        echo ""
+
+        local max_choice=$idx
+        local raw_choice
+        read -p " [?] Select an identity to apply [1-${max_choice}]: " raw_choice
+        if [[ "$raw_choice" -eq "$max_choice" ]] 2>/dev/null; then
+            return
+        fi
+        if [[ "$raw_choice" -ge 1 && "$raw_choice" -lt "$max_choice" ]] 2>/dev/null; then
+            TARGET_PROFILE="${profiles[$((raw_choice - 1))]}"
+        else
+            echo " [!] Invalid selection."
+            [[ -z "$CLI_MODE" ]] && read -p " Press Enter..." || true
+            return
+        fi
 
         echo ""
         echo " [?] Scope:"
@@ -847,6 +910,8 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
         echo "=================================================================="
         echo "               G I T   I D E N T I T Y   M A N A G E R            "
         echo "                        Version: $VERSION                         "
+        echo "=================================================================="
+        echo " $(active_status_line)"
         echo "=================================================================="
         echo ""
         echo "    [ 1 ] Setup New Account (Generate Keys)"
