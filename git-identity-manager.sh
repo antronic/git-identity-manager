@@ -435,7 +435,7 @@ view_profiles() {
         PROFILE_FILE="$PROFILES_DIR/$opt"
         P_NAME=$(grep "user.name" "$PROFILE_FILE" | cut -d'"' -f2 || echo "Unknown")
         P_EMAIL=$(grep "user.email" "$PROFILE_FILE" | cut -d'"' -f2 || echo "Unknown")
-        P_GPG=$(grep "user.signingkey" "$PROFILE_FILE" | awk '{print $4}' || echo "")
+        P_GPG=$(grep "^git config user.signingkey" "$PROFILE_FILE" | awk '{print $4}' || true)
 
         if [[ -n "$P_GPG" ]]; then
             GPG_STATUS="[+] Active"
@@ -474,7 +474,7 @@ modify_identity() {
 
             CURRENT_NAME=$(grep "user.name" "$PROFILE_FILE" | cut -d'"' -f2)
             CURRENT_EMAIL=$(grep "user.email" "$PROFILE_FILE" | cut -d'"' -f2)
-            GPG_LINE=$(grep "user.signingkey" "$PROFILE_FILE" || true)
+            GPG_LINE=$(grep "^git config user.signingkey" "$PROFILE_FILE" || true)
             GPG_SIGN_LINE=$(grep "commit.gpgsign" "$PROFILE_FILE" || true)
 
             echo " [i] Leave blank and press Enter to keep current values."
@@ -586,7 +586,7 @@ print_keys() {
             fi
 
             PROFILE_FILE="$PROFILES_DIR/$opt"
-            GPG_ID=$(grep "user.signingkey" "$PROFILE_FILE" | awk '{print $4}' || true)
+            GPG_ID=$(grep "^git config user.signingkey" "$PROFILE_FILE" | awk '{print $4}' || true)
             if [[ -n "$GPG_ID" ]]; then
                 echo "------------------------------------------------------------------"
                 echo " 🛡️  GPG PUBLIC KEY ($GPG_ID):"
@@ -660,7 +660,7 @@ run_doctor() {
                 fi
             fi
 
-            GPG_ID=$(grep "user.signingkey" "$PROFILE_FILE" | awk '{print $4}' || true)
+            GPG_ID=$(grep "^git config user.signingkey" "$PROFILE_FILE" | awk '{print $4}' || true)
             if [[ -n "$GPG_ID" ]]; then
                 if ! gpg --list-secret-keys "$GPG_ID" >/dev/null 2>&1; then
                     echo " [!] WARNING: GPG Key '$GPG_ID' for '$opt' is not in local keychain."

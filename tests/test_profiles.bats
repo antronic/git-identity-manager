@@ -99,3 +99,25 @@ teardown() {
         [[ "$line" == git\ config* ]] || { echo "Unexpected line: $line"; return 1; }
     done < "$PROFILES_DIR/testid"
 }
+
+# --- view_profiles GPG status (regression: --unset line must not read as Active) ---
+
+@test "view_profiles shows GPG as None for profile without GPG key" {
+    finalize_profile "nogpg" "Carol" "carol@test.com" "" "" "GENERATE"
+    run bash -c "
+        source '${BATS_TEST_DIRNAME}/../git-identity-manager.sh'
+        P_GPG=\$(grep '^git config user.signingkey' '$PROFILES_DIR/nogpg' | awk '{print \$4}' || true)
+        echo \"GPG=[\$P_GPG]\"
+    "
+    [[ "$output" == *"GPG=[]"* ]]
+}
+
+@test "view_profiles shows GPG as Active for profile with a GPG key" {
+    finalize_profile "withgpg" "Dave" "dave@test.com" "ABCD1234EFGH5678" "" "GENERATE"
+    run bash -c "
+        source '${BATS_TEST_DIRNAME}/../git-identity-manager.sh'
+        P_GPG=\$(grep '^git config user.signingkey' '$PROFILES_DIR/withgpg' | awk '{print \$4}' || true)
+        echo \"GPG=[\$P_GPG]\"
+    "
+    [[ "$output" == *"GPG=[ABCD1234EFGH5678]"* ]]
+}
