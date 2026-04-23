@@ -226,30 +226,93 @@ teardown() {
     [ "$SETTING_SHOW_CHANGELOG" = "false" ]
 }
 
-# --- fetch_changelog JSON parsing ------------------------------------------
+# --- fetch_changelog: CHANGELOG.md parsing ---------------------------------
 
-@test "fetch_changelog parses body from compact JSON (no space after colon)" {
-    unset -f fetch_changelog
-    load_script
-    curl() {
-        echo '{"tag_name":"v1.2.0","body":"### Added\n- New thing\n### Fixed\n- Bug fix"}'
-    }
-    export -f curl
-    run fetch_changelog "1.2.0"
-    [ "$status" -eq 0 ]
-    [[ "$output" == *"Added"* ]] || [[ "$output" == *"New thing"* ]]
+_mock_changelog_curl() {
+    cat <<'CHANGELOG'
+# Changelog
+
+## [Unreleased]
+
+## [1.2.7] - 2026-04-23
+
+### Added
+- Profile Backup/Restore feature.
+
+### Changed
+- Menu reordered so Settings and Exit are always last.
+
+## [1.2.6] - 2026-04-23
+
+### Added
+- Startup UX checking message.
+CHANGELOG
 }
 
-@test "fetch_changelog parses body from pretty-printed JSON (space after colon)" {
-    # Regression: GitHub API returns pretty-printed JSON with 'body': '...' (space after :)
-    # The old grep pattern '"body":"' missed this entirely.
+@test "fetch_changelog extracts the correct version section" {
     unset -f fetch_changelog
     load_script
-    curl() {
-        printf '{\n  "tag_name": "v1.2.0",\n  "body": "### Added\\n- New thing\\n### Fixed\\n- Bug fix"\n}\n'
-    }
-    export -f curl
-    run fetch_changelog "1.2.0"
+    curl() { _mock_changelog_curl; }
+    export -f curl _mock_changelog_curl
+    run fetch_changelog "1.2.7"
     [ "$status" -eq 0 ]
-    [[ "$output" == *"Added"* ]] || [[ "$output" == *"New thing"* ]]
+    [[ "$output" == *"Profile Backup/Restore"* ]]
+}
+
+@test "fetch_changelog does not bleed into adjacent version sections" {
+    unset -f fetch_changelog
+    load_script
+    curl() { _mock_changelog_curl; }
+    export -f curl _mock_changelog_curl
+    run fetch_changelog "1.2.7"
+    [ "$status" -eq 0 ]
+    [[ "$output" != *"Startup UX"* ]]
+}
+
+@test "fetch_changelog with no version returns the latest released section" {
+    unset -f fetch_changelog
+    load_script
+    curl() { _mock_changelog_curl; }
+    export -f curl _mock_changelog_curl
+    run fetch_changelog
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"Profile Backup/Restore"* ]]
+    [[ "$output" != *"Startup UX"* ]]
+}
+
+@test "fetch_changelog skips the Unreleased section when no version given" {
+    unset -f fetch_changelog
+    load_script
+    curl() { _mock_changelog_curl; }
+    export -f curl _mock_changelog_curl
+    run fetch_changelog
+    [ "$status" -eq 0 ]
+    [[ "$output" != *"Unreleased"* ]]
+}
+
+# --- version_gt: numeric semver comparison ----------------------------------
+
+@test "version_gt returns true when patch number is greater" {
+    run version_gt "1.2.8" "1.2.7"
+    [ "$status" -eq 0 ]
+}
+
+@test "version_gt returns false when versions are equal" {
+    run version_gt "1.2.7" "1.2.7"
+    [ "$status" -ne 0 ]
+}
+
+@test "version_gt returns false when version is lower" {
+    run version_gt "1.2.6" "1.2.7"
+    [ "$status" -ne 0 ]
+}
+
+@test "version_gt handles minor version correctly (1.3.0 > 1.2.9)" {
+    run version_gt "1.3.0" "1.2.9"
+    [ "$status" -eq 0 ]
+}
+
+@test "version_gt handles double-digit patch correctly (1.2.10 > 1.2.9)" {
+    run version_gt "1.2.10" "1.2.9"
+    [ "$status" -eq 0 ]
 }

@@ -32,17 +32,17 @@ A zero-dependency, pure Bash TUI/CLI tool to effortlessly manage multiple Git id
 - [📄 License](#-license)
 
 ## ✨ Features
-- [x] **Interactive TUI:** Easy-to-use terminal menu for managing accounts.
-- [x] **CLI Support:** Switch profiles instantly via terminal commands.
-- [x] **SSH Key Generation:** Automatically generates and links `ed25519` SSH keys.
-- [x] **GPG Signatures:** Automates passphraseless or secure GPG key creation for signed commits.
-- [x] **Anti-Bleed Architecture:** Uses isolated `Include` files and `IdentitiesOnly yes` to prevent the SSH Agent from using the wrong keys.
-- [x] **System Doctor:** Built-in health check to repair file permissions, missing configs, and broken aliases.
-- [x] **Import Existing Keys:** Securely link your existing SSH/GPG keys to a new profile.
-- [x] **Auto-Updater:** Self-upgrades to the latest version directly from GitHub (explicit `y` confirmation required).
-- [x] **Settings Menu:** Toggle auto-update checks and changelog display; trigger manual update checks — all persisted to `~/.git-manager/config.env`.
-- [x] **Active Profile Display:** Current local and global identities shown on the main menu and in the Switch screen.
-- [ ] *(Next)* **Profile Backup/Restore:** Export profiles to a secure `.tar.gz` archive.
+- [x] **Interactive TUI:** Easy-to-use terminal menu for managing accounts. — [`v1.0.0`](https://github.com/antronic/git-identity-manager/releases/tag/v1.0.0)
+- [x] **CLI Support:** Switch profiles instantly via terminal commands. — [`v1.0.0`](https://github.com/antronic/git-identity-manager/releases/tag/v1.0.0)
+- [x] **SSH Key Generation:** Automatically generates and links `ed25519` SSH keys. — [`v1.0.0`](https://github.com/antronic/git-identity-manager/releases/tag/v1.0.0)
+- [x] **GPG Signatures:** Automates passphraseless or secure GPG key creation for signed commits. — [`v1.0.0`](https://github.com/antronic/git-identity-manager/releases/tag/v1.0.0)
+- [x] **Anti-Bleed Architecture:** Uses isolated `Include` files and `IdentitiesOnly yes` to prevent the SSH Agent from using the wrong keys. — [`v1.0.0`](https://github.com/antronic/git-identity-manager/releases/tag/v1.0.0)
+- [x] **System Doctor:** Built-in health check to repair file permissions, missing configs, and broken aliases. — [`v1.0.0`](https://github.com/antronic/git-identity-manager/releases/tag/v1.0.0)
+- [x] **Import Existing Keys:** Securely link your existing SSH/GPG keys to a new profile. — [`v1.0.0`](https://github.com/antronic/git-identity-manager/releases/tag/v1.0.0)
+- [x] **Auto-Updater:** Self-upgrades to the latest version directly from GitHub (explicit `y` confirmation required). — [`v1.1.0`](https://github.com/antronic/git-identity-manager/releases/tag/v1.1.0)
+- [x] **Settings Menu:** Toggle auto-update checks, changelog display, and update-check frequency (`everytime` / `daily` / `weekly`); trigger manual update checks — all persisted to `~/.git-manager/config.env`. — [`v1.2.0`](https://github.com/antronic/git-identity-manager/releases/tag/v1.2.0)
+- [x] **Active Profile Display:** Current local and global identities shown on the main menu and in the Switch screen. — [`v1.2.0`](https://github.com/antronic/git-identity-manager/releases/tag/v1.2.0)
+- [x] **Profile Backup/Restore:** Export all profiles, SSH configs, and keys to a timestamped `.tar.gz` archive; restore on any machine with a single command. — [`v1.2.7`](https://github.com/antronic/git-identity-manager/releases/tag/v1.2.7)
 - [ ] *(Next)* **Repo Auto-Detection:** Automatically detect which identity belongs to a folder upon `cd`.
 
 ## ⚠️ Known Issues
@@ -71,7 +71,7 @@ git-identity-manager
 ```
  ==================================================================
               G I T   I D E N T I T Y   M A N A G E R
-                         Version: 1.2.2
+                         Version: 1.2.8
  ==================================================================
   Active  →  local: work  |  global: personal
  ==================================================================
@@ -85,11 +85,12 @@ git-identity-manager
      [ 7 ] View Public Keys (SSH/GPG)
      [ 8 ] Run Doctor (Validate & Auto-Fix)
      [ 9 ] Quick Guide & How-To
-     [10 ] Settings
+     [10 ] Backup / Restore Profiles
+     [11 ] Settings
      [ 0 ] Exit
 
  ==================================================================
- -> Select an option [0-9/10]:
+ -> Select an option [0-9/10/11]:
 ```
 
 #### Setting Up a New Profile (Option 1)
@@ -119,6 +120,9 @@ git-identity-manager global <profile>       # Apply profile globally
 git-identity-manager view                   # List all configured profiles
 git-identity-manager doctor                 # Run health check and auto-fix
 git-identity-manager update                 # Force check for updates
+git-identity-manager settings               # Open settings menu
+git-identity-manager backup [path]          # Backup all profiles to .tar.gz (default: current dir)
+git-identity-manager restore <file>         # Restore profiles from a .tar.gz backup archive
 git-identity-manager --help                 # Show help message
 ```
 
@@ -311,12 +315,12 @@ bats --filter "finalize_profile" tests/test_profiles.bats
 
 | Suite | Tests | What it covers |
 |-------|------:|----------------|
-| `test_structure.bats` | 22 | Syntax checks, VERSION format, SSH safety rules, CLI registration, Settings symbols |
-| `test_profiles.bats` | 14 | `get_profiles`, `finalize_profile`, alias injection, GPG status detection |
+| `test_structure.bats` | 29 | Syntax checks, VERSION format, SSH safety rules, CLI registration, Settings, Backup/Restore, `version_gt` symbols |
+| `test_profiles.bats` | 20 | `get_profiles`, `finalize_profile`, alias injection, GPG status detection, `backup_profiles`, `restore_profiles` |
 | `test_switch.bats` | 16 | `switch_identity` local & global, `get_active_profile`, `active_status_line` |
 | `test_release.bats` | 11 | `bump_version` patch / minor / major logic |
-| `test_changelog.bats` | 15 | `show_changelog_once`, `fetch_changelog`, Settings guards |
-| **Total** | **78** | |
+| `test_changelog.bats` | 32 | `show_changelog_once`, `fetch_changelog` (CHANGELOG.md parsing), `version_gt`, Settings guards, update-check frequency |
+| **Total** | **108** | |
 
 > **Note:** Tests are fully isolated — each test gets its own `$HOME` in a temp directory and never touches your real `~/.git-manager`, `~/.ssh`, or shell RC files.
 
@@ -369,7 +373,7 @@ git-identity-manager/
    git checkout -b feat/my-feature
    ```
 2. **Make your changes** in `git-identity-manager.sh` (single-file rule — no new `.sh` helpers).
-3. **Run tests** — all 57 must pass:
+3. **Run tests** — all 108 must pass:
    ```bash
    bash tests/run_tests.sh
    ```

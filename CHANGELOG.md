@@ -7,6 +7,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.8] - 2026-04-23
+
+### Changed
+- `check_for_updates`: version comparison is now numeric semver (`version_gt`) instead of
+  a string `!=` check, so `1.2.10` is correctly detected as newer than `1.2.9`.
+- `fetch_changelog`: release notes are now sourced directly from the raw `CHANGELOG.md` in
+  the repository rather than from the GitHub Releases API JSON body, ensuring the notes
+  shown on upgrade always match what is written in the file.
+- `CHANGELOG_URL` updated from the GitHub Releases API endpoint to the raw CHANGELOG.md URL.
+
+### Added
+- `version_gt()`: new helper that splits `X.Y.Z` into three integers and compares them
+  component-by-component using decimal arithmetic (`10#$x`) to handle leading-zero edge cases.
+- 8 new BATS tests: 4 for `fetch_changelog` (correct section extraction, no bleed-through,
+  latest-section fallback, Unreleased skip) and 5 for `version_gt` (patch/minor/equal/lower/
+  double-digit), plus 1 structural test for `version_gt` presence. (108 tests total)
+
+## [1.2.7] - 2026-04-23
+
+### Added
+- **Profile Backup/Restore** (`[10] Backup / Restore Profiles` in TUI, `backup [path]` and `restore <file>` CLI commands):
+  - `backup_profiles`: bundles all profiles, SSH conf files, and referenced SSH private/public keys
+    into a timestamped `git-identity-manager-backup-<YYYYMMDD_HHMMSS>.tar.gz` archive.
+  - `restore_profiles`: extracts an archive, reinstates profiles, SSH conf, and keys (with correct
+    `600` / `644` permissions), and re-adds shell aliases to `$SHELL_PROFILE` if missing.
+  - GPG private keys are intentionally excluded (they live in the system keychain); the output
+    reminds users to export them separately with `gpg --export-secret-keys`.
+  - 12 new BATS tests: 6 in `test_profiles.bats` (backup creation, archive content, empty-vault,
+    missing-archive error, restore files, restore aliases) and 6 in `test_structure.bats`
+    (function definitions, CLI parser and TUI registration). (100 tests total)
+
+### Changed
+- Main TUI menu reordered: `[10] Backup / Restore Profiles`, `[11] Settings`, `[0] Exit`
+  so that Settings and Exit are always the last two items.
+
 ## [1.2.6] - 2026-04-23
 
 ### Added
@@ -119,7 +154,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - GitHub Actions: ShellCheck, CI (syntax check), Release, Stale, Welcome, Release Drafter
 - Zero external dependencies (pure Bash)
 
-[Unreleased]: https://github.com/antronic/git-identity-manager/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/antronic/git-identity-manager/compare/v1.2.8...HEAD
+[1.2.8]: https://github.com/antronic/git-identity-manager/compare/v1.2.7...v1.2.8
+[1.2.7]: https://github.com/antronic/git-identity-manager/compare/v1.2.6...v1.2.7
+[1.2.6]: https://github.com/antronic/git-identity-manager/compare/v1.2.5...v1.2.6
+[1.2.5]: https://github.com/antronic/git-identity-manager/compare/v1.2.4...v1.2.5
+[1.2.4]: https://github.com/antronic/git-identity-manager/compare/v1.2.3...v1.2.4
+[1.2.3]: https://github.com/antronic/git-identity-manager/compare/v1.2.2...v1.2.3
+[1.2.2]: https://github.com/antronic/git-identity-manager/compare/v1.2.1...v1.2.2
+[1.2.1]: https://github.com/antronic/git-identity-manager/compare/v1.2.0...v1.2.1
 [1.2.0]: https://github.com/antronic/git-identity-manager/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/antronic/git-identity-manager/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/antronic/git-identity-manager/releases/tag/v1.0.0

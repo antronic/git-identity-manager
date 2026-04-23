@@ -102,6 +102,82 @@ teardown() {
 
 # --- view_profiles GPG status (regression: --unset line must not read as Active) ---
 
+# --- backup_profiles -------------------------------------------------------
+
+@test "backup_profiles creates a .tar.gz archive" {
+    make_fake_profile "work" "Alice" "alice@work.com"
+    local outdir="${BATS_TMPDIR}/bkp_${BATS_TEST_NUMBER}"
+    mkdir -p "$outdir"
+    CLI_MODE=true
+    run backup_profiles "$outdir"
+    [ "$status" -eq 0 ]
+    local found
+    found=$(find "$outdir" -name "*.tar.gz" | head -1)
+    [[ -n "$found" ]]
+}
+
+@test "backup_profiles archive contains profile files" {
+    make_fake_profile "work" "Alice" "alice@work.com"
+    local outdir="${BATS_TMPDIR}/bkp2_${BATS_TEST_NUMBER}"
+    mkdir -p "$outdir"
+    CLI_MODE=true
+    backup_profiles "$outdir"
+    local archive
+    archive=$(find "$outdir" -name "*.tar.gz" | head -1)
+    run tar -tzf "$archive"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"profiles/work"* ]]
+}
+
+@test "backup_profiles reports empty when vault is empty" {
+    local outdir="${BATS_TMPDIR}/bkp3_${BATS_TEST_NUMBER}"
+    mkdir -p "$outdir"
+    CLI_MODE=true
+    run backup_profiles "$outdir"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"empty"* ]]
+}
+
+# --- restore_profiles -------------------------------------------------------
+
+@test "restore_profiles fails gracefully for missing archive" {
+    CLI_MODE=true
+    run restore_profiles "/nonexistent/file.tar.gz"
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"not found"* ]]
+}
+
+@test "restore_profiles restores profile files from archive" {
+    make_fake_profile "work" "Alice" "alice@work.com"
+    local outdir="${BATS_TMPDIR}/rst_${BATS_TEST_NUMBER}"
+    mkdir -p "$outdir"
+    CLI_MODE=true
+    backup_profiles "$outdir"
+    local archive
+    archive=$(find "$outdir" -name "*.tar.gz" | head -1)
+    rm "$PROFILES_DIR/work"
+    restore_profiles "$archive"
+    [ -f "$PROFILES_DIR/work" ]
+}
+
+@test "restore_profiles adds shell aliases after restore" {
+    make_fake_profile "work" "Alice" "alice@work.com"
+    local outdir="${BATS_TMPDIR}/rst2_${BATS_TEST_NUMBER}"
+    mkdir -p "$outdir"
+    CLI_MODE=true
+    backup_profiles "$outdir"
+    local archive
+    archive=$(find "$outdir" -name "*.tar.gz" | head -1)
+    rm "$PROFILES_DIR/work"
+    grep -v "alias as-work" "$SHELL_PROFILE" > "${SHELL_PROFILE}.tmp" || true
+    mv "${SHELL_PROFILE}.tmp" "$SHELL_PROFILE"
+    restore_profiles "$archive"
+    run grep "alias as-work=" "$SHELL_PROFILE"
+    [ "$status" -eq 0 ]
+}
+
+# --- view_profiles GPG status (regression: --unset line must not read as Active) ---
+
 @test "view_profiles shows GPG as None for profile without GPG key" {
     finalize_profile "nogpg" "Carol" "carol@test.com" "" "" "GENERATE"
     run bash -c "

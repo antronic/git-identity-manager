@@ -2,14 +2,14 @@
 
 # ==============================================================================
 #  GIT IDENTITY MANAGER
-#  Version: 1.2.6
+#  Version: 1.2.8
 #  Repository: https://github.com/antronic/git-identity-manager
 #  Features: Setup, Import, Switch, View, Modify, Delete, Keys, Doctor, CLI
 # ==============================================================================
 
-VERSION="1.2.6"
+VERSION="1.2.8"
 UPDATE_URL="https://raw.githubusercontent.com/antronic/git-identity-manager/main/git-identity-manager.sh"
-CHANGELOG_URL="https://api.github.com/repos/antronic/git-identity-manager/releases/latest"
+CHANGELOG_URL="https://raw.githubusercontent.com/antronic/git-identity-manager/main/CHANGELOG.md"
 
 MANAGER_DIR="$HOME/.git-manager"
 PROFILES_DIR="$MANAGER_DIR/profiles"
@@ -117,26 +117,50 @@ save_setting() {
     load_settings
 }
 
-# --- HELPER: FETCH CHANGELOG FROM GITHUB RELEASES ---
+# --- HELPER: NUMERIC SEMVER COMPARISON ---
+# version_gt A B  →  returns 0 (true) if A is strictly greater than B.
+# Compares each X.Y.Z component as a decimal integer so 1.2.10 > 1.2.9.
+version_gt() {
+    local a b i x y
+    IFS='.' read -r -a a <<< "$1"
+    IFS='.' read -r -a b <<< "$2"
+    for (( i = 0; i < 3; i++ )); do
+        x="${a[i]:-0}"
+        y="${b[i]:-0}"
+        if   (( 10#$x > 10#$y )); then return 0
+        elif (( 10#$x < 10#$y )); then return 1
+        fi
+    done
+    return 1  # equal is not greater
+}
+
+# --- HELPER: FETCH CHANGELOG FROM REMOTE CHANGELOG.MD ---
+# Parses the raw CHANGELOG.md (Keep-a-Changelog format) directly from the
+# repository so release notes always match what is written in the file.
 fetch_changelog() {
     local target_version="${1:-}"
     if ! command -v curl &> /dev/null; then return; fi
 
-    local release_json
-    if [[ -n "$target_version" ]]; then
-        release_json=$(curl -sL --max-time 5 \
-            "https://api.github.com/repos/antronic/git-identity-manager/releases/tags/v${target_version}" \
-            2>/dev/null)
-    else
-        release_json=$(curl -sL --max-time 5 "$CHANGELOG_URL" 2>/dev/null)
-    fi
+    local content
+    content=$(curl -sL --max-time 5 "$CHANGELOG_URL" 2>/dev/null)
+    [[ -z "$content" ]] && return
 
-    # Extract body field — works without jq; handles both compact and pretty-printed JSON
-    # (GitHub API returns pretty-printed JSON with a space after "body": )
-    echo "$release_json" | \
-        grep '"body"' | \
-        sed 's/^[[:space:]]*"body":[[:space:]]*"//; s/"[[:space:]]*,\{0,1\}[[:space:]]*$//' | \
-        sed 's/\\r\\n/\n/g; s/\\n/\n/g; s/\\"/"/g'
+    # Extract the section that starts with ## [target_version] and ends before
+    # the next ## [ heading.  The awk index() call matches the literal string so
+    # dots in version numbers are never treated as regex wildcards.
+    if [[ -n "$target_version" ]]; then
+        echo "$content" | awk \
+            -v ver="$target_version" \
+            'found && /^## \[/{exit}
+             /^## \[/ && index($0, "["ver"]"){found=1; next}
+             found{print}'
+    else
+        # No version requested — return the first released section (skip [Unreleased])
+        echo "$content" | awk \
+            '/^## \[Unreleased\]/{next}
+             /^## \[/{if(found)exit; found=1; next}
+             found{print}'
+    fi
 }
 
 # --- HELPER: SHOW CHANGELOG ONCE AFTER AN UPGRADE ---
@@ -199,7 +223,7 @@ check_for_updates() {
     # Record timestamp so frequency gate can skip future startup checks
     date +%s > "$MANAGER_DIR/.last_update_check" 2>/dev/null || true
 
-    if [ -n "$REMOTE_VERSION" ] && [ "$REMOTE_VERSION" != "$VERSION" ]; then
+    if [ -n "$REMOTE_VERSION" ] && version_gt "$REMOTE_VERSION" "$VERSION"; then
         echo "=================================================================="
         echo " [*] UPDATE AVAILABLE! "
         echo "     Current Version : $VERSION"
@@ -840,6 +864,220 @@ quick_guide() {
     read -p " Press Enter to return to the menu..."
 }
 
+# --- FUNCTION: BACKUP / RESTORE MENU ---
+backup_restore() {
+    while true; do
+        clear
+        echo "=================================================================="
+        echo " [ BACKUP / RESTORE ]  PROFILE ARCHIVE"
+        echo "=================================================================="
+        echo ""
+        echo "  [1] Backup Profiles  (Export to .tar.gz)"
+        echo "  [2] Restore Profiles (Import from .tar.gz)"
+        echo "  [0] Back to Main Menu"
+        echo ""
+        echo "=================================================================="
+        [[ -z "$CLI_MODE" ]] && read -p " -> Select an option [0-2]: " br_choice || return 0
+
+        case $br_choice in
+            1) backup_profiles  ;;
+            2) restore_profiles ;;
+            0) break ;;
+            *) echo "" ; echo " [!] Invalid option." ; sleep 1 ;;
+        esac
+    done
+}
+
+# --- FUNCTION: BACKUP PROFILES ---
+backup_profiles() {
+    local dest_arg="${1:-}"
+    clear
+    echo "=================================================================="
+    echo " [ BACKUP ]  EXPORT PROFILES TO ARCHIVE"
+    echo "=================================================================="
+    echo ""
+
+    get_profiles
+    if [ ${#profiles[@]} -eq 0 ]; then
+        echo " [i] No profiles to backup. Vault is empty."
+        [[ -z "$CLI_MODE" ]] && read -p " Press Enter..." || true
+        return
+    fi
+
+    echo " [i] The following profiles will be backed up:"
+    for p in "${profiles[@]}"; do
+        echo "     • $p"
+    done
+    echo ""
+
+    local dest_dir="."
+    if [[ -n "$dest_arg" ]]; then
+        dest_dir="${dest_arg/#\~/$HOME}"
+    elif [[ -z "$CLI_MODE" ]]; then
+        read -p " [?] Save backup to directory [current directory]: " input_dir
+        [[ -n "$input_dir" ]] && dest_dir="${input_dir/#\~/$HOME}"
+    fi
+    dest_dir="${dest_dir%/}"
+
+    if [[ ! -d "$dest_dir" ]]; then
+        echo " [!] Directory not found: $dest_dir"
+        [[ -z "$CLI_MODE" ]] && read -p " Press Enter..." || true
+        return 1
+    fi
+
+    local timestamp backup_name work_dir
+    timestamp=$(date +%Y%m%d_%H%M%S)
+    backup_name="git-identity-manager-backup-${timestamp}"
+    work_dir=$(mktemp -d)
+    mkdir -p "$work_dir/$backup_name/profiles"
+    mkdir -p "$work_dir/$backup_name/ssh-conf"
+    mkdir -p "$work_dir/$backup_name/ssh-keys"
+
+    local included=0
+    for p in "${profiles[@]}"; do
+        if [[ -f "$PROFILES_DIR/$p" ]]; then
+            cp "$PROFILES_DIR/$p" "$work_dir/$backup_name/profiles/$p"
+            (( included++ )) || true
+        fi
+        [[ -f "$SSH_CONF_DIR/$p.conf" ]] && \
+            cp "$SSH_CONF_DIR/$p.conf" "$work_dir/$backup_name/ssh-conf/$p.conf" || true
+        if [[ -f "$SSH_CONF_DIR/$p.conf" ]]; then
+            local ssh_key_path
+            ssh_key_path=$(grep "IdentityFile" "$SSH_CONF_DIR/$p.conf" | awk '{print $2}')
+            [[ -f "$ssh_key_path"       ]] && cp "$ssh_key_path"       "$work_dir/$backup_name/ssh-keys/" || true
+            [[ -f "${ssh_key_path}.pub" ]] && cp "${ssh_key_path}.pub" "$work_dir/$backup_name/ssh-keys/" || true
+        fi
+    done
+
+    (cd "$work_dir" && tar -czf "${backup_name}.tar.gz" "$backup_name")
+    mv "$work_dir/${backup_name}.tar.gz" "$dest_dir/${backup_name}.tar.gz"
+    rm -rf "$work_dir"
+
+    echo " [+] Backup created: $dest_dir/${backup_name}.tar.gz"
+    echo " [i] Contains $included profile(s) with SSH configurations."
+    echo ""
+    echo " [!] Note: GPG private keys live in your system keychain and are NOT"
+    echo "     included. Export them separately if needed:"
+    echo "     gpg --export-secret-keys > gpg-backup.gpg"
+    echo ""
+    [[ -z "$CLI_MODE" ]] && read -p " Press Enter to return..." || true
+}
+
+# --- FUNCTION: RESTORE PROFILES ---
+restore_profiles() {
+    local backup_arg="${1:-}"
+    clear
+    echo "=================================================================="
+    echo " [ RESTORE ]  IMPORT PROFILES FROM ARCHIVE"
+    echo "=================================================================="
+    echo ""
+
+    local backup_path
+    if [[ -n "$backup_arg" ]]; then
+        backup_path="${backup_arg/#\~/$HOME}"
+    elif [[ -z "$CLI_MODE" ]]; then
+        read -p " [?] Path to backup archive (.tar.gz): " raw_path
+        backup_path="${raw_path/#\~/$HOME}"
+    else
+        echo " [!] Usage: git-identity-manager restore <archive-path>"
+        return 1
+    fi
+
+    if [[ ! -f "$backup_path" ]]; then
+        echo " [!] Archive not found: $backup_path"
+        [[ -z "$CLI_MODE" ]] && read -p " Press Enter..." || true
+        return 1
+    fi
+
+    local work_dir
+    work_dir=$(mktemp -d)
+    if ! tar -xzf "$backup_path" -C "$work_dir" 2>/dev/null; then
+        echo " [!] Failed to extract archive. Ensure it is a valid .tar.gz file."
+        rm -rf "$work_dir"
+        [[ -z "$CLI_MODE" ]] && read -p " Press Enter..." || true
+        return 1
+    fi
+
+    local inner_dir=""
+    for d in "$work_dir"/*/; do
+        [[ -d "$d" ]] && inner_dir="${d%/}" && break
+    done
+
+    if [[ -z "$inner_dir" || ! -d "$inner_dir/profiles" ]]; then
+        echo " [!] Invalid backup: missing 'profiles/' directory in archive."
+        rm -rf "$work_dir"
+        [[ -z "$CLI_MODE" ]] && read -p " Press Enter..." || true
+        return 1
+    fi
+
+    local archive_profiles=()
+    for f in "$inner_dir/profiles/"*; do
+        [[ -e "$f" ]] && archive_profiles+=("$(basename "$f")")
+    done
+
+    if [[ ${#archive_profiles[@]} -eq 0 ]]; then
+        echo " [i] No profiles found in the archive."
+        rm -rf "$work_dir"
+        [[ -z "$CLI_MODE" ]] && read -p " Press Enter..." || true
+        return
+    fi
+
+    echo " [i] Archive contains ${#archive_profiles[@]} profile(s):"
+    for p in "${archive_profiles[@]}"; do
+        local pstatus="new"
+        [[ -f "$PROFILES_DIR/$p" ]] && pstatus="will overwrite existing"
+        echo "     • $p  ($pstatus)"
+    done
+    echo ""
+
+    if [[ -z "$CLI_MODE" ]]; then
+        read -p " [?] Proceed with restore? (y/N): " CONFIRM
+        if [[ ! "${CONFIRM:-N}" =~ ^[Yy]$ ]]; then
+            echo " [*] Restore aborted."
+            rm -rf "$work_dir"
+            read -p " Press Enter..." && return
+        fi
+    fi
+
+    local restored=0
+    for p in "${archive_profiles[@]}"; do
+        cp "$inner_dir/profiles/$p" "$PROFILES_DIR/$p"
+        [[ -f "$inner_dir/ssh-conf/$p.conf" ]] && \
+            cp "$inner_dir/ssh-conf/$p.conf" "$SSH_CONF_DIR/$p.conf" || true
+        if [[ -d "$inner_dir/ssh-keys" ]]; then
+            for keyfile in "$inner_dir/ssh-keys/"*; do
+                [[ -e "$keyfile" ]] || continue
+                local dest_key
+                dest_key="$HOME/.ssh/$(basename "$keyfile")"
+                cp "$keyfile" "$dest_key"
+                if [[ "$dest_key" == *.pub ]]; then
+                    chmod 644 "$dest_key"
+                else
+                    chmod 600 "$dest_key"
+                fi
+            done
+        fi
+        local profile_file="$PROFILES_DIR/$p"
+        local switch_cmd="as-$p"
+        local global_switch_cmd="as-$p-global"
+        if ! grep -q "alias $switch_cmd=" "$SHELL_PROFILE" 2>/dev/null; then
+            echo "alias $switch_cmd='source \"$profile_file\" && echo \" [+] Switched to identity: $p (Local)\"'" >> "$SHELL_PROFILE"
+            echo "alias $global_switch_cmd='sed \"s/git config/git config --global/g\" \"$profile_file\" | bash && echo \" [+] Switched to identity: $p (Global)\"'" >> "$SHELL_PROFILE"
+        fi
+        (( restored++ )) || true
+        echo " [+] Restored: $p"
+    done
+
+    rm -rf "$work_dir"
+    echo ""
+    echo " [+] Successfully restored $restored profile(s)."
+    echo " [i] SSH keys restored to ~/.ssh/ with correct permissions."
+    echo " [i] Shell aliases re-added to: $SHELL_PROFILE"
+    echo " [i] Note: GPG keys must be imported manually: gpg --import <key-file>"
+    echo ""
+    [[ -z "$CLI_MODE" ]] && read -p " Press Enter to return..." || true
+}
+
 # --- FUNCTION: MANAGE SETTINGS ---
 manage_settings() {
     while true; do
@@ -924,6 +1162,8 @@ print_help() {
     echo "  doctor                Run system health check and auto-fix"
     echo "  update                Force check for script updates"
     echo "  settings              Open settings menu"
+    echo "  backup [path]         Backup all profiles to .tar.gz (default: current dir)"
+    echo "  restore <file>        Restore profiles from a .tar.gz backup archive"
     echo "  --help, -h            Display this help message"
     echo ""
     echo "Example:"
@@ -946,6 +1186,8 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
         doctor) run_doctor; exit 0 ;;
         update) check_for_updates; exit 0 ;;
         settings) load_settings; manage_settings; exit 0 ;;
+        backup)   backup_profiles  "$2"; exit 0 ;;
+        restore)  restore_profiles "$2"; exit 0 ;;
         "") CLI_MODE="" ;; # No args, launch GUI
         *) echo "Unknown command: $1"; print_help; exit 1 ;;
     esac
@@ -973,11 +1215,12 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
         echo "    [ 7 ] View Public Keys (SSH/GPG)"
         echo "    [ 8 ] Run Doctor (Validate & Auto-Fix)"
         echo "    [ 9 ] Quick Guide & How-To"
-        echo "    [10 ] Settings"
+        echo "    [10 ] Backup / Restore Profiles"
+        echo "    [11 ] Settings"
         echo "    [ 0 ] Exit"
         echo ""
         echo "=================================================================="
-        read -p " -> Select an option [0-9/10]: " choice
+        read -p " -> Select an option [0-9/10/11]: " choice
 
         case $choice in
             1)  setup_identity ;;
@@ -989,7 +1232,8 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
             7)  print_keys ;;
             8)  run_doctor ;;
             9)  quick_guide ;;
-            10) manage_settings ;;
+            10) backup_restore ;;
+            11) manage_settings ;;
             0)  echo "" ; echo " Exiting system. Goodbye." ; echo "" ; exit 0 ;;
             *)  echo "" ; echo " [!] Invalid option." ; sleep 1 ;;
         esac

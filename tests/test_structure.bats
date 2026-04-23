@@ -106,6 +106,41 @@ SCRIPT="${BATS_TEST_DIRNAME}/../git-identity-manager.sh"
     [ "$status" -eq 0 ]
 }
 
+@test "version_gt function is defined" {
+    run grep -q "^version_gt()" "$SCRIPT"
+    [ "$status" -eq 0 ]
+}
+
+@test "backup is registered in the CLI case parser" {
+    run grep -qE "backup\)" "$SCRIPT"
+    [ "$status" -eq 0 ]
+}
+
+@test "restore is registered in the CLI case parser" {
+    run grep -qE "restore\)" "$SCRIPT"
+    [ "$status" -eq 0 ]
+}
+
+@test "backup_profiles function is defined" {
+    run grep -q "^backup_profiles()" "$SCRIPT"
+    [ "$status" -eq 0 ]
+}
+
+@test "restore_profiles function is defined" {
+    run grep -q "^restore_profiles()" "$SCRIPT"
+    [ "$status" -eq 0 ]
+}
+
+@test "backup_restore function is defined" {
+    run grep -q "^backup_restore()" "$SCRIPT"
+    [ "$status" -eq 0 ]
+}
+
+@test "option 11 is registered in TUI menu loop" {
+    run grep -qE "11\)" "$SCRIPT"
+    [ "$status" -eq 0 ]
+}
+
 @test "CONFIG_FILE variable is defined" {
     run grep -q "^CONFIG_FILE=" "$SCRIPT"
     [ "$status" -eq 0 ]
