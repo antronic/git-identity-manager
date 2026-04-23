@@ -2,12 +2,12 @@
 
 # ==============================================================================
 #  GIT IDENTITY MANAGER
-#  Version: 1.2.3
+#  Version: 1.2.4
 #  Repository: https://github.com/antronic/git-identity-manager
 #  Features: Setup, Import, Switch, View, Modify, Delete, Keys, Doctor, CLI
 # ==============================================================================
 
-VERSION="1.2.3"
+VERSION="1.2.4"
 UPDATE_URL="https://raw.githubusercontent.com/antronic/git-identity-manager/main/git-identity-manager.sh"
 CHANGELOG_URL="https://api.github.com/repos/antronic/git-identity-manager/releases/latest"
 
